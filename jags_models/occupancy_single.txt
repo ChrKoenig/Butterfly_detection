@@ -1,0 +1,33 @@
+model{
+  # Priors for detection probability  
+    mu_p_obs ~ dnorm(0, 0.0001)
+    tau_p_obs <- pow(sd_p_obs, -2) 
+    sd_p_obs ~ dunif(0, 10)
+    for(o in 1:n_observer){
+      alpha_0[o] ~ dnorm(mu_p_obs, tau_p_obs)
+    }
+    for(n in 1:n_pred_alpha){
+      alpha_1[n] ~ dnorm(0, 0.0001)
+    }
+
+  # Priors for occupancy probability
+    beta_0 ~ dnorm(0, 0.0001)
+    for(m in 1:n_pred_beta){
+      beta_1[m] ~ dnorm(0, 0.0001)
+    }
+  
+  # Likelihood   TODO: RANDOM EFFECT OF FOR YEAR?
+    for(i in 1:n_sites){ 
+      z[i] ~ dbern(psi[i]) # True Occupancy
+      logit(psi[i]) <- beta_0 + inprod(beta_1, x_occ[i,]) # Probability of true occupancy
+        for(j in 1:n_visits){
+        y[i,j] ~ dbin(mu[i,j], 2) # Probability of observation in two visits
+        mu[i,j] = z[i] * p[i,j]
+        logit(p[i,j]) <- alpha_0[observer[i]] + # Random effect of obsever
+                         alpha_1[1] * elev[i]  + 
+                         alpha_1[2] * elev_sq[i] +
+                         alpha_1[3] * date[i,j] + 
+                         alpha_1[4] * date_sq[i,j]
+        }
+    }
+  }
