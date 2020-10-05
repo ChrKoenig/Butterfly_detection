@@ -12,17 +12,24 @@ load("Data/traits_final.RData")
 
 # ------------------------------------------------------------------------------------- #
 #### Define JAGS model ####
-cat(file="butterfly_detection/jags_models/occupancy_single.txt", "model{
-  # Priors for detection probability  
-    for(o in 1:n_observer){
-      alpha_0[o] ~ dnorm(0, tau_p_obs)
-    }
-    tau_p_obs ~ dgamma(0.001,0.001) 
-    for(n in 1:n_pred_alpha){
-      alpha_1[n] ~ dnorm(0, 0.00001)
+cat(file="butterfly_detection/jags_models/occupancy_multi.txt", "model{
+    # Priors for detection probability  
+    for(k in 1:n_spec){
+      for(o in 1:n_observer){
+        alpha_0[k,o] ~ dnorm(p_mean[k], tau_p_obs)
+      }
+      p_mean[k] ~ dunif(0, 1)
+      tau_p_obs ~ dgamma(0.001,0.001) 
+      
+      for(n in 1:n_pred_alpha){
+        alpha_1[k,n] ~ dnorm(0, 0.00001)
+      }
     }
 
-  # Priors for occupancy probability´
+  # Priors for occupancy probability
+    for(k in 1:n_spec){
+      p_mean[k] ~ dunif(0, 1)
+    }
     psi_mean ~ dunif(0,1) 
     beta_0 <- logit(psi_mean)
     for(m in 1:n_pred_beta){

@@ -8,29 +8,27 @@ rm(list = ls())
 
 # ------------------------------------------------------------------------------------- #
 #### Species data ####
-butterflies_raw = read_csv("Data/raw_data/1550_TF_Daten_blinded.csv") %>% 
-  mutate(coord_x = coordx * 1000, coord_y = coordy * 1000) %>% 
-  # group_by(coord_x, coord_y) %>% 
-  # mutate(site_id = cur_group_id()) %>% 
-  # ungroup() %>% 
+butterflies = read_csv("Data/raw_data/1550_TF_Daten_blinded.csv",
+                       col_types = list(ArtCodeTagf = "f", NameTagfLat = "f", aldStao_ = "f", Jahr_ = "f", Bearbeiter = "f")) %>% 
   filter(Aufnahmetyp == "Normalaufnahme_Z7", Flags.ZA == 0) %>% 
-  na_if("?")
-
-butterflies = butterflies_raw %>%
-  mutate(region = case_when(BGR %in% c("Östliche Zentralalpen","Westliche Zentralalpen") ~ "ZA",
-                            BGR %in% c("Jura") ~ "JU",
-                            BGR %in% c("Mittelland") ~ "ML",
-                            BGR %in% c("Alpennordflanke") ~ "AN",
-                            BGR %in% c("Alpensüdflanke") ~ "AS"),
-         species = str_replace(NameTagfLat, "-Komplex", "")) %>% 
+  na_if("?") %>% 
   mutate_at(vars(PreAbs1:PreAbs7), function(x){
     x = replace(x, x == -1, NA) # Not visited
     x = replace(x, x == 0, 0) # Not observed 
     x = replace(x, x == 1 | x == 2, 1) # Observed once
     x = replace(x, x > 2, 2)  # Observed twice
   }) %>% 
+  mutate_at(vars(contains("Day")), list(~ as.numeric(.))) %>% 
+  mutate(region = case_when(BGR %in% c("Östliche Zentralalpen","Westliche Zentralalpen") ~ "ZA",
+                            BGR %in% c("Jura") ~ "JU",
+                            BGR %in% c("Mittelland") ~ "ML",
+                            BGR %in% c("Alpennordflanke") ~ "AN",
+                            BGR %in% c("Alpensüdflanke") ~ "AS"),
+         species = as.factor(str_replace(NameTagfLat, "-Komplex", "")),
+         coord_x = coordx * 1000, 
+         coord_y = coordy * 1000)  %>% 
   rename_all(tolower) %>% 
-  dplyr::select(spec_id = artcodetagf, species, site_id = aldstao_, region, coord_x, coord_y, 
+  dplyr::select(spec_id = artcodetagf, species = nametagflat, site_id = aldstao_, region, coord_x, coord_y, 
                 elevation = hoehe, year = jahr_, observer = bearbeiter, day1:day7, preabs1:preabs7)
 
 save(butterflies, file = "Data/butterflies.RData") 
@@ -78,7 +76,7 @@ extr_env = cbind(extr_climtopo, extr_landuse) %>%
   mutate(site_id = as.integer(names(site_polygons))) %>% 
   left_join(distinct(butterflies[,c("site_id", "elevation")])) %>% 
   column_to_rownames("site_id")
-  
+
 sample_sites = SpatialPolygonsDataFrame(site_polygons, extr_env, match.ID = T)
 save(sample_sites, file =  "Data/sample_sites.RData")
 

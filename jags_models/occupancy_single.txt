@@ -1,33 +1,36 @@
 model{
   # Priors for detection probability  
-    mu_p_obs ~ dnorm(0, 0.0001)
-    tau_p_obs <- pow(sd_p_obs, -2) 
-    sd_p_obs ~ dunif(0, 10)
     for(o in 1:n_observer){
-      alpha_0[o] ~ dnorm(mu_p_obs, tau_p_obs)
+      alpha_0[o] ~ dnorm(mu_p, tau_p)
     }
+    mu_p ~ dnorm(0, 0.00001)
+    tau_p ~ dgamma(0.001,0.001) 
     for(n in 1:n_pred_alpha){
-      alpha_1[n] ~ dnorm(0, 0.0001)
+      alpha_1[n] ~ dnorm(0, 0.00001)
     }
 
   # Priors for occupancy probability
-    beta_0 ~ dnorm(0, 0.0001)
-    for(m in 1:n_pred_beta){
-      beta_1[m] ~ dnorm(0, 0.0001)
+    for(t in 1:n_year){
+      beta_0[t] ~ dnorm(mu_psi, tau_psi_year)
     }
-  
-  # Likelihood   TODO: RANDOM EFFECT OF FOR YEAR?
+    mu_psi ~ dnorm(0, 0.00001)
+    tau_psi_year ~ dgamma(0.001,0.001) 
+    for(m in 1:n_pred_beta){
+      beta_1[m] ~ dnorm(0, 0.00001)
+    }        
+    
+  # Likelihood
     for(i in 1:n_sites){ 
       z[i] ~ dbern(psi[i]) # True Occupancy
-      logit(psi[i]) <- beta_0 + inprod(beta_1, x_occ[i,]) # Probability of true occupancy
-        for(j in 1:n_visits){
+      logit(psi[i]) <- beta_0[year[i]] + inprod(beta_1, x_occ[i,]) # Probability of true occupancy
+      for(j in 1:n_visits){
         y[i,j] ~ dbin(mu[i,j], 2) # Probability of observation in two visits
         mu[i,j] = z[i] * p[i,j]
         logit(p[i,j]) <- alpha_0[observer[i]] + # Random effect of obsever
                          alpha_1[1] * elev[i]  + 
                          alpha_1[2] * elev_sq[i] +
-                         alpha_1[3] * date[i,j] + 
-                         alpha_1[4] * date_sq[i,j]
-        }
+                         alpha_1[3] * day[i,j] + 
+                         alpha_1[4] * day_sq[i,j]
+      }
     }
   }
