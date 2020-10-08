@@ -45,7 +45,7 @@ observations_completed = observations %>%
   complete(spec_id, site_id, year) %>% 
   replace(is.na(.), 0) %>% 
   inner_join(visit_info, by = c("site_id", "year")) %>% 
-  inner_join(distinct(select(observations, "species", "spec_id"))) %>% 
+  inner_join(distinct(dplyr::select(observations, "species", "spec_id"))) %>% 
   relocate(species, .after = spec_id) %>% 
   relocate(preabs1:preabs7, .after = last_col()) %>% 
   mutate_if(is.factor, as.character) 
@@ -138,7 +138,7 @@ save(traits_final, file =  "Data/traits_final.RData")
 # synonym_lookup = drop_na(read_csv("Data/synonym_lookup_edit.csv"))
 
 species_final = traits_final %>% 
-  inner_join(distinct(select(observations_completed, "spec_id", "species"))) %>% 
-  select(species, spec_id)
+  inner_join(distinct(dplyr::select(observations_completed, "spec_id", "species"))) %>% 
+  dplyr::select(species, spec_id)
 
 save(species_final, file = "Data/species_final.RData")
