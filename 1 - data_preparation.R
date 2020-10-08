@@ -1,9 +1,8 @@
 library("raster")
 library("sp")
 library("tidyverse")
-library("taxize")
 
-setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
+setwd("~/Butterfly_project/")
 rm(list = ls())
 
 # ------------------------------------------------------------------------------------- #
