@@ -1,13 +1,12 @@
 library("tidyverse")
 library("rjags")
-library("coda")
 
 setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
 rm(list=ls())
 
-load("Data/butterflies.RData")
+load("Data/observations_completed.RData")
 load("Data/sample_sites.RData")
-load("Data/traits_final.RData")
+load("Data/species_final.RData")
 
 # ------------------------------------------------------------------------------------- #
 #### Define JAGS model ####
@@ -49,30 +48,7 @@ cat(file="Butterfly_detection/jags_models/occupancy_single.txt", "model{
   }")
 
 # ------------------------------------------------------------------------------------- #
-#### Prepare data ####
-# obtain unique combinations of site_id x observer x year
-visit_info = butterflies %>% 
-  dplyr::select(site_id:observer, day1:day7) %>% 
-  distinct()
-
-# Complete observation data, i.e. add absences for unobserved species 
-observations_completed = butterflies %>% 
-  filter(as.numeric(as.character(year)) > 2007) %>% 
-  droplevels() %>% 
-  dplyr::select(spec_id, site_id, year, preabs1:preabs7) %>% 
-  complete(spec_id, site_id, year) %>% 
-  replace(is.na(.), 0) %>% 
-  inner_join(visit_info, by = c("site_id", "year")) %>% 
-  relocate(preabs1:preabs7, .after = last_col()) %>% 
-  mutate_if(is.factor, as.character) 
-
-# Final species selection (observed + traits available)
-species_final = drop_na(traits_final) %>% 
-  inner_join(distinct(select(butterflies, "species", "spec_id"))) %>% 
-  inner_join(distinct(select(observations_completed, "spec_id"))) %>% 
-  select(species, spec_id)
-
-#### Fit model for all species ####
+#### Fit model, loop over all species ####
 for(spec in species_final$spec_id[1:4]){
   cat(species_final$species[species_final$spec_id == paste(spec)], "\n") 
   
@@ -91,7 +67,7 @@ for(spec in species_final$spec_id[1:4]){
   
   # Predictors state model
   x_occ = sample_sites@data[paste(y$site_id),] %>% 
-    dplyr::select(bio_1, bio_4, bio_12, bio_15) %>%  # TODO: Log-Transform?
+    dplyr::select(ddeg0, bio_12, rad, asp, slp) %>%  
     mutate_all(scale) %>% # center and rescale
     mutate_all(list(sq = ~.*.)) %>%  # add quadratic terms 
     as.matrix()
