@@ -1,5 +1,7 @@
-library("tidyverse")
-library("rjags")
+library(tidyverse)
+library(rjags)
+library(foreach)
+library(doParallel)
 
 setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
 rm(list=ls())
@@ -49,8 +51,11 @@ cat(file="Butterfly_detection/jags_models/occupancy_single.txt", "model{
 
 # ------------------------------------------------------------------------------------- #
 #### Fit model, loop over all species ####
-for(spec in species_final$spec_id[1:4]){
-  cat(species_final$species[species_final$spec_id == paste(spec)], "\n") 
+cl = makeCluster(6)
+registerDoParallel(cl)
+
+foreach(spec = species_final$spec_id[27:nrow(species_final)], .packages = c("tidyverse", "rjags")) %dopar% {
+  # cat(species_final$species[species_final$spec_id == paste(spec)], "\n") 
   
   #### Prepare Data ####
   # Observations
@@ -106,8 +111,10 @@ for(spec in species_final$spec_id[1:4]){
   jags_model = jags.model(file = "Butterfly_detection/jags_models/occupancy_single.txt", 
                           data = jags_data, 
                           inits = jags_inits, 
-                          n.chains = 2, n.adapt = 100)
-  jags_samples = coda.samples(jags_model, params, n.iter = 100, thin = 10)
+                          n.chains = 2, n.adapt = 1000)
+  update(jags_model, 2000)
+  jags_samples = coda.samples(jags_model, params, n.iter = 5000, thin = 20)
   save(jags_samples, file = paste0("Data/model_fits/", spec, "_MCMC.RData"))
-  cat("\n") 
 }
+
+stopCluster(cl)
