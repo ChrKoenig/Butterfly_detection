@@ -108,8 +108,8 @@ save(sample_sites, file =  "Data/sample_sites.RData")
 
 # ------------------------------------------------------------------------------------- #
 #### Trait data ####
-# traits_altermatt = read_csv("Data/raw_data/traits/traits_Altermatt.csv") %>% 
-#  select(species, generations, hibernation, larva_diet)
+traits_altermatt = read_csv("Data/raw_data/traits/traits_Altermatt.csv") %>% 
+  select(species, generations, hibernation, larva_diet)
 
 synonym_lookup = drop_na(read_csv("Data/synonym_lookup_edit.csv"))
 
