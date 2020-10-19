@@ -38,15 +38,22 @@ visit_info = observations %>%
   dplyr::select(site_id:observer, day1:day7) %>% 
   distinct()
 
+# Count observations per species / year*site (ignore repeated sampling)
+spec_count = table(observations[rowSums(observations[,paste0("preabs", 1:7)], na.rm = T) > 0, "spec_id"])
+observations_count = spec_count %>% 
+  as.data.frame() %>% 
+  rename("spec_id" = "Var1", "n" = "Freq") %>% 
+  filter(n > 30)
+
 # Complete observation data, i.e. add absences for unobserved species 
 observations_completed = observations %>% 
-  filter(as.numeric(as.character(year)) > 2007) %>% # No good observations before 2007
+  filter(spec_id %in% observations_count$spec_id) %>% # Use only species with > 30 observations
   droplevels() %>% 
   dplyr::select(spec_id, site_id, year, preabs1:preabs7) %>% 
   complete(spec_id, site_id, year) %>% 
   replace(is.na(.), 0) %>% 
   inner_join(visit_info, by = c("site_id", "year")) %>% 
-  inner_join(distinct(select(observations, "species", "spec_id"))) %>% 
+  inner_join(distinct(dplyr::select(observations, "species", "spec_id"))) %>% 
   relocate(species, .after = spec_id) %>% 
   relocate(preabs1:preabs7, .after = last_col()) %>% 
   mutate_if(is.factor, as.character) 
@@ -136,10 +143,10 @@ save(traits_final, file =  "Data/traits_final.RData")
 # write_csv(data.frame(name_BDM = obs_only, name_Zeuss = ""), path = "Data/synonym_lookup.csv")
 # 
 # # Load species lookup table
-# synonym_lookup = drop_na(read_csv("Data/synonym_lookup_edit.csv"))
+synonym_lookup = drop_na(read_csv("Data/synonym_lookup_edit.csv"))
 
 species_final = traits_final %>% 
-  inner_join(distinct(select(observations_completed, "spec_id", "species"))) %>% 
-  select(species, spec_id)
+  inner_join(distinct(dplyr::select(observations_completed, "spec_id", "species"))) %>% 
+  dplyr::select(species, spec_id)
 
 save(species_final, file = "Data/species_final.RData")

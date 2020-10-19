@@ -1,11 +1,11 @@
-library(tidyverse)
-library(rjags)
-library(foreach)
-library(doParallel)
+library("tidyverse")
+library("rjags")
+library("foreach")
+library("doParallel")
 
-setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
+setwd("~/Butterfly_project")
+
 rm(list=ls())
-
 load("Data/observations_completed.RData")
 load("Data/sample_sites.RData")
 load("Data/species_final.RData")
@@ -51,12 +51,10 @@ cat(file="Butterfly_detection/jags_models/occupancy_single.txt", "model{
 
 # ------------------------------------------------------------------------------------- #
 #### Fit model, loop over all species ####
-cl = makeCluster(6)
+cl = makeCluster(50)
 registerDoParallel(cl)
 
-foreach(spec = species_final$spec_id[27:nrow(species_final)], .packages = c("tidyverse", "rjags")) %dopar% {
-  # cat(species_final$species[species_final$spec_id == paste(spec)], "\n") 
-  
+results = foreach(spec = species_final$spec_id, .packages = c("rjags", "tidyverse")) %dopar% {
   #### Prepare Data ####
   # Observations
   y = observations_completed %>% 
@@ -65,11 +63,6 @@ foreach(spec = species_final$spec_id[27:nrow(species_final)], .packages = c("tid
     drop_na(preabs1:preabs7) %>% 
     droplevels() 
   
-  if(all(summarize(y, across(preabs1:preabs7, sum)) == 0)){
-    cat("No observations. Skipping species.")
-    next()
-  }
-  
   # Predictors state model
   x_occ = sample_sites@data[paste(y$site_id),] %>% 
     dplyr::select(ddeg0, bio_12, rad, asp, slp) %>%  
@@ -77,7 +70,7 @@ foreach(spec = species_final$spec_id[27:nrow(species_final)], .packages = c("tid
     mutate_all(list(sq = ~.*.)) %>%  # add quadratic terms 
     as.matrix()
   year = as.factor(y$year)
-
+  
   # Predictors detection model
   x_det_raw = observations_completed %>% 
     filter(spec_id == spec) %>% 
@@ -91,7 +84,7 @@ foreach(spec = species_final$spec_id[27:nrow(species_final)], .packages = c("tid
   elev = as.vector(scale(as.numeric(x_det_raw$elevation)))
   elev_sq = elev*elev
   observer = as.factor(x_det_raw$observer)
- 
+  
   # Final clean up
   y = y %>% select(-site_id, -year) %>% as.matrix()
   
@@ -111,10 +104,8 @@ foreach(spec = species_final$spec_id[27:nrow(species_final)], .packages = c("tid
   jags_model = jags.model(file = "Butterfly_detection/jags_models/occupancy_single.txt", 
                           data = jags_data, 
                           inits = jags_inits, 
-                          n.chains = 2, n.adapt = 1000)
-  update(jags_model, 2000)
-  jags_samples = coda.samples(jags_model, params, n.iter = 5000, thin = 20)
+                          n.chains = 4, n.adapt = 1000)
+  update(jags_model, 10000)
+  jags_samples = coda.samples(jags_model, params, n.iter = 20000, thin = 100)
   save(jags_samples, file = paste0("Data/model_fits/", spec, "_MCMC.RData"))
 }
-
-stopCluster(cl)
