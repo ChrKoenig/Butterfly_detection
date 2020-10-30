@@ -7,6 +7,7 @@ rm(list=ls())
 
 load("Data/species_final.RData")
 load("Data/traits_final.RData")
+load("Data/colors_extr.RData")
 
 # ------------------------------------------------------------------------------------- #
 #### organize model estimates ####
