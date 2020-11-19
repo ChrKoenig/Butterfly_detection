@@ -1,5 +1,5 @@
 library("tidyverse")
-library("ubms")
+library("rjags")
 library("foreach")
 library("doParallel")
 
@@ -38,6 +38,7 @@ cat(file="Butterfly_detection/jags_models/occupancy_single.txt", "model{
       z[i] ~ dbern(psi[i]) # True Occupancy
       logit(psi[i]) <- beta_0[year[i]] + inprod(beta_1, x_occ[i,]) # Probability of true occupancy
       for(j in 1:n_visits){
+        # estimate mu
         y[i,j] ~ dbin(mu[i,j], 2) # Probability of observation in two visits
         mu[i,j] = z[i] * p[i,j]
         logit(p[i,j]) <- alpha_0[observer[i]] + # Random effect of obsever
@@ -45,8 +46,18 @@ cat(file="Butterfly_detection/jags_models/occupancy_single.txt", "model{
                          alpha_1[2] * elev_sq[i] +
                          alpha_1[3] * day[i,j] + 
                          alpha_1[4] * day_sq[i,j]
+        
+        # Chi-square test statistic and posterior predictive check
+        chi2[i,j] <- pow((y[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.00001) # observed
+        y_pr[i,j] ~ dbin(mu[i,j], 2)
+        chi2_pr[i,j] <- pow((y_pr[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.00001) # expected
       }
+      
     }
+    
+    # Derived measures
+    fit = sum(chi2)
+    fit_pr = sum(chi2_pr)
   }")
 
 # ------------------------------------------------------------------------------------- #
@@ -98,14 +109,14 @@ results = foreach(spec = species_final$spec_id, .packages = c("rjags", "tidyvers
   }
   
   # Parameters to be monitored
-  params = c("mu_p", "mu_psi", "alpha_1", "beta_1")
+  params = c("mu_p", "mu_psi", "alpha_1", "beta_1", "fit", "fit_pr", "y_pr")
   
-  # Run model 
+  # Fit model 
   jags_model = jags.model(file = "Butterfly_detection/jags_models/occupancy_single.txt", 
                           data = jags_data, 
                           inits = jags_inits, 
-                          n.chains = 4, n.adapt = 1000)
-  update(jags_model, 10000)
-  jags_samples = coda.samples(jags_model, params, n.iter = 20000, thin = 100)
-  save(jags_samples, file = paste0("Data/model_fits/", spec, "_MCMC.RData"))
+                          n.chains = 2, n.adapt = 100)
+  update(jags_model, 100) # Burn-In
+  jags_samples = coda.samples(jags_model, params, n.iter = 200, thin = 5) # Sampling
+  save(jags_samples, file = paste0("Data/models_test/", spec, "_MCMC.RData"))
 }

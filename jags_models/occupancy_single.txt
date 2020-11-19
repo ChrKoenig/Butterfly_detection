@@ -24,6 +24,7 @@ model{
       z[i] ~ dbern(psi[i]) # True Occupancy
       logit(psi[i]) <- beta_0[year[i]] + inprod(beta_1, x_occ[i,]) # Probability of true occupancy
       for(j in 1:n_visits){
+        # estimate mu
         y[i,j] ~ dbin(mu[i,j], 2) # Probability of observation in two visits
         mu[i,j] = z[i] * p[i,j]
         logit(p[i,j]) <- alpha_0[observer[i]] + # Random effect of obsever
@@ -31,6 +32,16 @@ model{
                          alpha_1[2] * elev_sq[i] +
                          alpha_1[3] * day[i,j] + 
                          alpha_1[4] * day_sq[i,j]
+        
+        # Chi-square test statistic and posterior predictive check
+        chi2[i,j] <- pow((y[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.00001) # observed
+        y_pr[i,j] ~ dbin(mu[i,j], 2)
+        chi2_pr[i,j] <- pow((y_pr[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.00001) # expected
       }
+      
     }
+    
+    # Derived measures
+    fit = sum(chi2)
+    fit_pr = sum(chi2_pr)
   }
