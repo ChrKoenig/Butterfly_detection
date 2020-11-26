@@ -1,0 +1,62 @@
+model{
+  #          Priors            #
+  # -------------------------- #
+  # Hyperpriors for detection model
+  mu_alpha_null ~ dnorm(0, 0.0001) T(-12,12)
+  tau_alpha_null ~ dgamma(0.01,0.01) 
+  for(p in 1:n_pred_det) {
+    mu_alpha_coef[p] ~ dnorm(0, 0.0001) T(-12,12)
+    tau_alpha_coef[p] ~ dgamma(0.01,0.01)
+  }
+  
+  # Hyperpriors for state model
+  mu_beta_null ~ dnorm(0, 0.0001) T(-12,12)
+  tau_beta_null ~ dgamma(0.01,0.01) 
+  for(p in 1:n_pred_occ) {
+    mu_beta_coef[p] ~ dnorm(0, 0.0001) T(-12,12)
+    tau_beta_coef[p] ~ dgamma(0.01,0.01)
+  }
+  
+  # Priors for species-level coefficients
+  for (i in 1:n_spec){
+    ## 1. Detection model ##
+    alpha_null[i] ~ dnorm(mu_alpha_null, tau_alpha_null)
+    for(p in 1:n_pred_det) {
+      alpha_coef[i,p] ~ dnorm(mu_alpha_coef[p], tau_alpha_coef[p])
+    }
+
+    ## 2. State model ##
+    beta_null[i] ~ dnorm(mu_beta_null, tau_beta_null)
+    for(p in 1:n_pred_occ) {
+      beta_coef[i,p] ~ dnorm(mu_beta_coef[p], tau_beta_coef[p])
+    }
+  }
+  
+  #        Likelihood          #
+  # -------------------------- #
+  for(i in 1:n_spec){
+    for(j in 1:n_sites){
+      z[i,j] ~ dbern(psi[i,j])
+      logit(psi[i,j]) = beta_null[i] + inprod(beta_coef[i,], x_state[j,])
+      for(k in 1:n_visits){
+        y[i,j,k] ~ dbin(mu[i,j,k], 2)             # Probability of observation in two visits (secondary samples)
+        mu[i,j,k] = z[i,j] * p[i,j,k]
+        logit(p[i,j,k]) = alpha_null[i] +
+                          alpha_coef[i,1] * elev[j] + 
+                          alpha_coef[i,2] * elev_sq[j] +
+                          alpha_coef[i,3] * day[j,k] +
+                          alpha_coef[i,4] * day_sq[j,k]
+        
+        # posterior predictive distribution
+        y_pr[i,j,k] ~ dbin(mu[i,j,k], 2)
+        
+        # Chi-square test statistic and posterior predictive check
+        chi2[i,j,k] <- pow((y[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # observed
+        chi2_pr[i,j,k] <- pow((y_pr[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # expected
+      }
+    }
+  }
+  # Derived measures
+  fit = sum(chi2)
+  fit_pr = sum(chi2_pr)
+}

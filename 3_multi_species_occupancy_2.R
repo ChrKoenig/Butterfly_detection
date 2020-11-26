@@ -11,11 +11,17 @@ load("Data/species_final.RData")
 load("Data/traits_final.RData")
 
 # ------------------------------------------------------------------------------------- #
+#                        ENHANCED MULTI SPECIES OCCUPANCY MODEL
+# NO effects of year on occupancy
+# NO effects of observer on detection
+# Effects of traits on detection
+# Community hyperpriors on species-level parameters
+# --------------------------------------------------------------------------------------#
 #### Define JAGS model ####
-cat(file="Butterfly_detection/jags_models/occupancy_multi.txt", "model{
+cat(file="Butterfly_detection/jags_models/MSOM_2.txt", "model{
   #          Priors            #
   # -------------------------- #
-  # Global trait effects (fixed)
+  # Priors for global trait effects
   for(t in 1:n_traits_num){
     alpha_traits_num[t] ~ dnorm(0,0.0001) T(-12,12)
   }
@@ -25,65 +31,68 @@ cat(file="Butterfly_detection/jags_models/occupancy_multi.txt", "model{
   for(c in 1:n_color_bottom){
     alpha_color_bottom[c] ~ dnorm(0,0.0001) T(-12,12)
   }
-  # Hyperprior for state model slopes
+ 
+  # Hyperpriors for detection model
+  mu_alpha_null ~ dnorm(0, 0.0001) T(-12,12)
+  tau_alpha_null ~ dgamma(0.01,0.01) 
+  for(p in 1:n_pred_det) {
+    mu_alpha_coef[p] ~ dnorm(0, 0.0001) T(-12,12)
+    tau_alpha_coef[p] ~ dgamma(0.01,0.01)
+  }
+  
+  # Hyperpriors for state model
+  mu_beta_null ~ dnorm(0, 0.0001) T(-12,12)
+  tau_beta_null ~ dgamma(0.01,0.01) 
   for(p in 1:n_pred_occ) {
     mu_beta_coef[p] ~ dnorm(0, 0.0001) T(-12,12)
     tau_beta_coef[p] ~ dgamma(0.01,0.01)
   }
-  # Global observer effect (random)
-  for(o in 1:n_observer){
-    alpha_null_obs[o] ~ dnorm(mu_alpha_null_obs, tau_alpha_null_obs)
-  }
-  mu_alpha_null_obs ~ dnorm(0, 0.0001) T(-12,12)
-  tau_alpha_null_obs ~ dgamma(0.01,0.01)
   
-  # Species-level effects
+  # Priors for species-level coefficients
   for (i in 1:n_spec){
-    ## 1. Detection model intercept ##
-    alpha_null_sp[i] ~ dnorm(mu_alpha_null_sp[i], tau_alpha_null_sp[i])
-    mu_alpha_null_sp[i] ~ dnorm(0, 0.0001) T(-12,12)
-    tau_alpha_null_sp[i] ~ dgamma(0.001,0.001) 
-    
-    ## 2. Detection model slope ##
-    alpha_day[i] ~ dnorm(0, 0.0001) T(-12,12)
-    alpha_day_sq[i] ~ dnorm(0, 0.0001) T(-12,12)
-    alpha_elev[i] ~ dnorm(0, 0.0001) T(-12,12)
-    alpha_elev_sq[i] ~ dnorm(0, 0.0001) T(-12,12)
-
-    ## 3. State model intercept ##
-    for(t in 1:n_year){
-      beta_null[i,t] ~ dnorm(mu_beta_null[i], tau_beta_null[i])
+    ## 1. Detection model ##
+    alpha_null[i] ~ dnorm(mu_alpha_null, tau_alpha_null)
+    for(p in 1:n_pred_det) {
+      alpha_coef[i,p] ~ dnorm(mu_alpha_coef[p], tau_alpha_coef[p])
     }
-    mu_beta_null[i] ~ dnorm(0, 0.001) T(-12,12)
-    tau_beta_null[i] ~ dgamma(0.01,0.01)
-    
-    ## 4. State model slope ##
+
+    ## 2. State model ##
+    beta_null[i] ~ dnorm(mu_beta_null, tau_beta_null)
     for(p in 1:n_pred_occ) {
       beta_coef[i,p] ~ dnorm(mu_beta_coef[p], tau_beta_coef[p])
     }
   }
-  
+
   #        Likelihood          #
   # -------------------------- #
   for(i in 1:n_spec){
     for(j in 1:n_sites){
       z[i,j] ~ dbern(psi[i,j])
-      logit(psi[i,j]) = beta_null[i,year[j]] + inprod(beta_coef[i,], x_state[j,])
+      logit(psi[i,j]) = beta_null[i] + inprod(beta_coef[i,], x_state[j,])
       for(k in 1:n_visits){
         y[i,j,k] ~ dbin(mu[i,j,k], 2)             # Probability of observation in two visits (secondary samples)
         mu[i,j,k] = z[i,j] * p[i,j,k]
-        logit(p[i,j,k]) = alpha_null_sp[i] +
-                          alpha_null_obs[observer[i]] +
+        logit(p[i,j,k]) = alpha_null[i] +
                           inprod(alpha_traits_num, traits_num[i,]) +
                           inprod(alpha_color_top, color_top[i,]) +
                           inprod(alpha_color_bottom, color_bottom[i,]) +
-                          alpha_elev[i] * elev[j] + 
-                          alpha_elev_sq[i] * elev_sq[j] +
-                          alpha_day[i] * day[j,k] +
-                          alpha_day_sq[i] * day_sq[j,k]
+                          alpha_coef[i,1] * elev[j] + 
+                          alpha_coef[i,2] * elev_sq[j] +
+                          alpha_coef[i,3] * day[j,k] +
+                          alpha_coef[i,4] * day_sq[j,k]
+        
+        # posterior predictive distribution
+        y_pr[i,j,k] ~ dbin(mu[i,j,k], 2)
+        
+        # Chi-square test statistic and posterior predictive check
+        chi2[i,j,k] <- pow((y[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # observed
+        chi2_pr[i,j,k] <- pow((y_pr[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # expected
       }
     }
   }
+  # Derived measures
+  fit = sum(chi2)
+  fit_pr = sum(chi2_pr)
 }")
 
 # ------------------------------------------------------------------------------------- #
@@ -110,21 +119,19 @@ x_state = site_year %>%
   mutate_all(scale) %>% # center and rescale
   mutate_all(list(sq = ~.*.)) %>%  # add quadratic terms 
   as.matrix()
-year = as.factor(site_year[,"year"])
 
 # Predictors detection model
-x_det_site = observations_completed %>% 
+x_det = observations_completed %>% 
   drop_na(preabs1:preabs7) %>% 
   dplyr::select(site_id, year, observer, elevation, day1:day7) %>% 
   arrange(site_id, year) %>% 
   distinct()
-day = matrix(apply(dplyr::select(x_det_site, day1:day7), 2, as.numeric), ncol = 7)
+day = matrix(apply(dplyr::select(x_det, day1:day7), 2, as.numeric), ncol = 7)
 day[is.na(day)] = mean(day, na.rm = T)  
 day = (day - mean(day)) / sd(day)
 day_sq = day*day
-elev = as.vector(scale(as.numeric(x_det_site$elevation)))
+elev = as.vector(scale(as.numeric(x_det$elevation)))
 elev_sq = elev*elev
-observer = as.factor(x_det_site$observer)
 
 traits_num = species_final %>% 
   left_join(traits_final, by = "species") %>% 
@@ -138,9 +145,8 @@ color_bottom = species_final %>%
 
 # Bundle data
 jags_data = list(n_spec = dim(y)[1], n_sites = dim(y)[2], n_visits = dim(y)[3], 
-                 n_pred_occ = ncol(x_state), n_observer = nlevels(observer), n_year = nlevels(year), 
-                 y = y, x_state = x_state, year = year,
-                 day = day, day_sq = day_sq, elev = elev, elev_sq = elev_sq, observer = observer,
+                 n_pred_occ = ncol(x_state), n_pred_det = 4, y = y, x_state = x_state,
+                 day = day, day_sq = day_sq, elev = elev, elev_sq = elev_sq,
                  traits_num = traits_num, n_traits_num = ncol(traits_num), 
                  color_top = color_top, n_color_top = ncol(color_top), color_bottom = color_bottom, n_color_bottom = ncol(color_bottom))
 
@@ -150,14 +156,14 @@ jags_inits = function(){
 }
 
 # Parameters to be monitored
-params = c("alpha_null_sp", "alpha_elev", "alpha_elev_sq", "alpha_day", "alpha_day_sq", "alpha_traits_num", "alpha_color_top",  "alpha_color_bottom",
-           "mu_beta_null", "mu_beta_coef")
+jags_params = c("alpha_null", "alpha_coef", "alpha_traits_num", "alpha_color_top",  "alpha_color_bottom",
+                "beta_null", "beta_coef", "fit", "fit_pr")
 
 # Fit model 
-jags_model = jags.model(file = "Butterfly_detection/jags_models/occupancy_multi.txt", 
-                        data = jags_data, 
-                        inits = jags_inits, 
-                        n.chains = 1, n.adapt = 100)
-update(jags_model, 500) # Burn-In
-jags_samples = coda.samples(jags_model, params, n.iter = 1000, thin = 5) # Sampling
-save(jags_samples, file = paste0("Data/models_test/multi_MCMC_500it.RData"))
+jags_samples = jags(data = jags_data, 
+                    inits = jags_inits, 
+                    parameters.to.save = jags_params, 
+                    model.file = "Butterfly_detection/jags_models/MSOM_2.txt",
+                    n.chains = 4, n.adapt = 500, n.burnin = 5000, n.iter = 15500, n.thin = 100, 
+                    parallel = T, n.cores = 4, DIC = T)
+save(jags_samples, file = "Data/models_fit/MSOM/MSOM_2_run1.RData")

@@ -1,5 +1,5 @@
 library("tidyverse")
-library("rjags")
+library("jagsUI")
 library("foreach")
 library("doParallel")
 
@@ -11,61 +11,57 @@ load("Data/sample_sites.RData")
 load("Data/species_final.RData")
 
 # ------------------------------------------------------------------------------------- #
+#                        SINGLE SPECIES OCCUPANCY MODEL
+# --------------------------------------------------------------------------------------#
 #### Define JAGS model ####
-cat(file="Butterfly_detection/jags_models/occupancy_single.txt", "model{
-  # Priors for detection probability  
-    for(o in 1:n_observer){
-      alpha_0[o] ~ dnorm(mu_p, tau_p)
-    }
-    mu_p ~ dnorm(0, 0.00001)
-    tau_p ~ dgamma(0.001,0.001) 
-    for(n in 1:n_pred_alpha){
-      alpha_1[n] ~ dnorm(0, 0.00001)
-    }
+cat(file="Butterfly_detection/jags_models/SSOM.txt", "model{
+  #          Priors            #
+  # -------------------------- #
+  ## 1. Detection model ##
+  alpha_null ~ dnorm(0, 0.0001) T(-12,12)
+  for(p in 1:n_pred_det) {
+    alpha_coef[p] ~ dnorm(0, 0.001) T(-12,12)
+  }
 
-  # Priors for occupancy probability
-    for(t in 1:n_year){
-      beta_0[t] ~ dnorm(mu_psi, tau_psi_year)
-    }
-    mu_psi ~ dnorm(0, 0.00001)
-    tau_psi_year ~ dgamma(0.001,0.001) 
-    for(m in 1:n_pred_beta){
-      beta_1[m] ~ dnorm(0, 0.00001)
-    }        
+  ## 2. State model ##
+  beta_null ~ dnorm(0, 0.0001) T(-12,12)
+  for(p in 1:n_pred_occ){
+    beta_coef[p] ~ dnorm(0, 0.0001) T(-12,12)
+  }        
     
   # Likelihood
-    for(i in 1:n_sites){ 
-      z[i] ~ dbern(psi[i]) # True Occupancy
-      logit(psi[i]) <- beta_0[year[i]] + inprod(beta_1, x_occ[i,]) # Probability of true occupancy
-      for(j in 1:n_visits){
-        # estimate mu
-        y[i,j] ~ dbin(mu[i,j], 2) # Probability of observation in two visits
-        mu[i,j] = z[i] * p[i,j]
-        logit(p[i,j]) <- alpha_0[observer[i]] + # Random effect of obsever
-                         alpha_1[1] * elev[i]  + 
-                         alpha_1[2] * elev_sq[i] +
-                         alpha_1[3] * day[i,j] + 
-                         alpha_1[4] * day_sq[i,j]
+  for(i in 1:n_sites){ 
+    z[i] ~ dbern(psi[i]) # True Occupancy
+    logit(psi[i]) <- beta_null + inprod(beta_coef, x_state[i,]) # Probability of true occupancy
+    for(j in 1:n_visits){
+      y[i,j] ~ dbin(mu[i,j], 2) # Probability of observation in two visits
+      mu[i,j] = z[i] * p[i,j]
+      logit(p[i,j]) <- alpha_null + 
+                       alpha_coef[1] * elev[i]  + 
+                       alpha_coef[2] * elev_sq[i] +
+                       alpha_coef[3] * day[i,j] + 
+                       alpha_coef[4] * day_sq[i,j]
         
-        # Chi-square test statistic and posterior predictive check
-        chi2[i,j] <- pow((y[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.00001) # observed
-        y_pr[i,j] ~ dbin(mu[i,j], 2)
-        chi2_pr[i,j] <- pow((y_pr[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.00001) # expected
-      }
+      # posterior predictive distribution
+      y_pr[i,j] ~ dbin(mu[i,j], 2)
       
+      # Chi-square test statistic and posterior predictive check
+      chi2[i,j] <- pow((y[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.0001) # observed
+      chi2_pr[i,j] <- pow((y_pr[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.0001) # expected
     }
-    
-    # Derived measures
-    fit = sum(chi2)
-    fit_pr = sum(chi2_pr)
-  }")
+  }
+  # Derived measures
+  fit = sum(chi2)
+  fit_pr = sum(chi2_pr)
+}")
 
 # ------------------------------------------------------------------------------------- #
 #### Fit model, loop over all species ####
-cl = makeCluster(50)
+cl = makeCluster(30)
 registerDoParallel(cl)
+specs = setdiff(species_final$spec_id, parse_number(list.files("Data/models_fit/SSOM/run_nov_24/")))
 
-results = foreach(spec = species_final$spec_id, .packages = c("rjags", "tidyverse")) %dopar% {
+foreach(spec = specs, .packages = c("jagsUI", "tidyverse")) %dopar% {
   #### Prepare Data ####
   # Observations
   y = observations_completed %>% 
@@ -75,48 +71,49 @@ results = foreach(spec = species_final$spec_id, .packages = c("rjags", "tidyvers
     droplevels() 
   
   # Predictors state model
-  x_occ = sample_sites@data[paste(y$site_id),] %>% 
+  x_state = sample_sites@data[paste(y$site_id),] %>% 
     dplyr::select(ddeg0, bio_12, rad, asp, slp) %>%  
     mutate_all(scale) %>% # center and rescale
     mutate_all(list(sq = ~.*.)) %>%  # add quadratic terms 
     as.matrix()
-  year = as.factor(y$year)
   
   # Predictors detection model
-  x_det_raw = observations_completed %>% 
+  x_det = observations_completed %>% 
     filter(spec_id == spec) %>% 
     dplyr::select(observer, elevation, preabs1:preabs7, day1:day7) %>% 
     drop_na(preabs1:preabs7)
   
-  day = matrix(apply(select(x_det_raw, day1:day7), 2, as.numeric), ncol = 7)
+  day = matrix(apply(select(x_det, day1:day7), 2, as.numeric), ncol = 7)
   day[is.na(day)] = mean(day, na.rm = T)  
   day = (day - mean(day)) / sd(day)
   day_sq = day*day
-  elev = as.vector(scale(as.numeric(x_det_raw$elevation)))
+  elev = as.vector(scale(as.numeric(x_det$elevation)))
   elev_sq = elev*elev
-  observer = as.factor(x_det_raw$observer)
   
   # Final clean up
   y = y %>% select(-site_id, -year) %>% as.matrix()
   
   # Bundle data
-  jags_data = list(y = y, n_sites = nrow(y), n_visits = ncol(y), n_pred_alpha = 4, n_pred_beta = ncol(x_occ), n_observer = nlevels(observer), 
-                   n_year = nlevels(year), x_occ = x_occ, day = day, day_sq = day_sq, elev = elev, elev_sq = elev_sq, observer = observer, year = year)
+  jags_data = list(y = y, n_sites = nrow(y), n_visits = ncol(y), n_pred_det = 4, n_pred_occ = ncol(x_state), 
+                   x_state = x_state, day = day, day_sq = day_sq, elev = elev, elev_sq = elev_sq)
   
   # Initial values
   jags_inits = function(){
-    list(z = rep(1, nrow(y)), mu_p = runif(1), mu_psi = runif(1))
+    list(z = rep(1, nrow(y)))
   }
   
   # Parameters to be monitored
-  params = c("mu_p", "mu_psi", "alpha_1", "beta_1", "fit", "fit_pr", "y_pr")
+  jags_params = c("alpha_null", "alpha_coef", "beta_null", "beta_coef", "fit", "fit_pr")
   
   # Fit model 
-  jags_model = jags.model(file = "Butterfly_detection/jags_models/occupancy_single.txt", 
-                          data = jags_data, 
-                          inits = jags_inits, 
-                          n.chains = 2, n.adapt = 100)
-  update(jags_model, 100) # Burn-In
-  jags_samples = coda.samples(jags_model, params, n.iter = 200, thin = 5) # Sampling
-  save(jags_samples, file = paste0("Data/models_test/", spec, "_MCMC.RData"))
+  jags_samples = jags(data = jags_data, 
+                      inits = jags_inits, 
+                      parameters.to.save = jags_params, 
+                      model.file = "Butterfly_detection/jags_models/SSOM.txt",
+                      n.chains = 4, n.adapt = 500, n.burnin = 5000, n.iter = 15500, n.thin = 100, 
+                      parallel = F, DIC = T)
+  save(jags_samples, file = paste0("Data/models_fit/SSOM/run_nov_24/", spec, "_MCMC.RData"))
+  gc()
+  return(spec)
 }
+stopCluster(cl)
