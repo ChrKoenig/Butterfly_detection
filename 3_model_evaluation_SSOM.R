@@ -7,10 +7,8 @@ load("Data/species_final.RData")
 
 # ------------------------------------------------------------------------------------- #
 #### Convergence ####
-load("Data/models_fit/SSOM/run_nov_24/31227_MCMC.RData") 
-
-# look at p and psi of random model
-load(sample(list.files("Data/models_fit/SSOM/run_nov_24", full.names = T), 1)) 
+load("Data/models_fit/SSOM/run_nov_24/31043_MCMC.RData") # Load specific species
+load(sample(list.files("Data/models_fit/SSOM/run_nov_24", full.names = T), 1)) # or look at random species
 jagsUI::traceplot(jags_samples, parameters = c("alpha_null", "beta_null"))
 
 # create convergence summary table
@@ -21,8 +19,10 @@ convergence_table = bind_rows(lapply(species_final$spec_id, FUN = function(spec)
     add_column(spec_id = spec, .before = "alpha_null")
 }))
 
+table(convergence_table$alpha_null) # 7 species with rhat > 1.1 on alpha_null
+
 #### Response curves ####
-plot_response = function(spec, variable, process){
+plot_response_SSOM = function(spec, variable, process){
   # Prepare model results
   load(paste0("Data/models_fit/SSOM/run_nov_24/", spec, "_MCMC.RData"))
   if(process == "detection"){
@@ -66,12 +66,23 @@ plot_response = function(spec, variable, process){
     )
   }
 }
+
 for(spec in species_final$spec_id){
-  plot_response(spec, "elev", "detection")
+  plot_response_SSOM(spec, "elev", "detection")
   Sys.sleep(0.1)
 }
 
 for(spec in species_final$spec_id){
-  plot_response(spec, "slp", "state")
+  plot_response_SSOM(spec, "day", "detection")
+  Sys.sleep(0.1)
+}
+
+for(spec in species_final$spec_id){
+  plot_response_SSOM(spec, "rad", "state")
+  Sys.sleep(0.1)
+}
+
+for(spec in species_final$spec_id){
+  plot_response_SSOM(spec, "ddeg0", "state")
   Sys.sleep(0.1)
 }
