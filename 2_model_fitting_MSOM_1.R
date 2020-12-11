@@ -139,4 +139,4 @@ jags_samples = jags(data = jags_data,
                     model.file = "Butterfly_detection/jags_models/MSOM_1.txt",
                     n.chains = 4, n.adapt = 500, n.burnin = 5000, n.iter = 15500, n.thin = 100, 
                     parallel = T, n.cores = 4, DIC = T)
-save(jags_samples, file = "Data/models_fit/MSOM/MSOM_1_run1.RData")
+saveRDS(jags_samples, file = "Data/models_fit/MSOM/MSOM_1_run1.RDS")

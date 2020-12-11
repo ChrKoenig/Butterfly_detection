@@ -2,7 +2,8 @@ library("tidyverse")
 
 setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
 rm(list=ls())
-load("Data/models_fit/MSOM/MSOM_1_run1.RData")
+load("Data/species_final.RData")
+load("Data/models_fit/MSOM/MSOM_3_run1.RData")
 
 # ------------------------------------------------------------------------------------- #
 summary(jags_samples)
@@ -35,7 +36,11 @@ plot_response_MSOM = function(spec, variable, process){
     coefs = jags_samples$sims.list$alpha_coef[,i,]
     colnames(coefs) = c("elev", "elev_sq", "day", "day_sq")
   } else if (process == "state"){
-    intercept = jags_samples$sims.list$beta_null[,i]
+    if(length(dim(jags_samples$sims.list$beta_null)) == 2){
+      intercept = jags_samples$sims.list$beta_null[,i]
+    } else {
+      intercept = rowMeans(jags_samples$sims.list$beta_null[,i,])
+    }
     coefs = jags_samples$sims.list$beta_coef[,i,]
     colnames(coefs) = c("ddeg0","bio_12","rad","asp","slp","ddeg0_sq","bio_12_sq","rad_sq","asp_sq","slp_sq")
   } else {

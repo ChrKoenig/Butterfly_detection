@@ -5,10 +5,10 @@ rm(list=ls())
 
 load("Data/species_final.RData")
 load("Data/traits_final.RData")
-load("Data/models_fit/MSOM/MSOM_1_run1.RData")
+load("Data/models_fit/MSOM/MSOM_3_run1.RData")
 
 # ------------------------------------------------------------------------------------- #
-#### organize SSOM model estimates ####
+#### organize MSOM model estimates ####
 antilogit = function(x){exp(x) / (1+exp(x))}
 model_estimates = Reduce(cbind, jags_samples$mean[c("alpha_null", "alpha_coef", "beta_null", "beta_coef")]) %>% 
   as_tibble() %>% 
