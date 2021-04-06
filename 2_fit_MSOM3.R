@@ -62,7 +62,7 @@ main_color = species_final %>%
 main_color = main_color[,-1] # remove intercept (i.e."none") column; will be estimated as separate param in JAGS 
 
 x_det_traits = cbind(traits_num, main_color)
-# qr(x_det_traits) # --> Full rank
+qr(x_det_traits) # --> Full rank
 
 # ------------------------------------------------------------------------------------- #
 #### Fit models ####
