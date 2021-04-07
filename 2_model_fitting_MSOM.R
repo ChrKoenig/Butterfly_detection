@@ -2,7 +2,7 @@ library("tidyverse")
 library("abind")
 library("jagsUI")
 
-setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
+setwd("~/ownCloud/Projects/Berlin/06_Butterfly_detection/")
 
 rm(list=ls())
 load("Data/observations_completed.RData")
@@ -51,26 +51,19 @@ observer = as.integer(factor(x_det$observer))
 traits_num = species_final %>% 
   left_join(traits_final, by = "species") %>% 
   dplyr::select(Vol_min, WIn, HSI, FMo_Average, mean_sat_top, mean_sat_bottom, mean_lgt_top, mean_lgt_bottom)
-color_top = species_final %>% 
+main_color = species_final %>% 
   left_join(traits_final, by = "species") %>% 
-  mutate(main_color_top = fct_relevel(main_color_top, "none", "red", "orange", "yellow", "green", "blue")) %>% 
-  model.matrix(~ main_color_top, data = .)
-color_bottom = species_final %>% 
-  left_join(traits_final, by = "species") %>%
-  mutate(main_color_bottom = fct_relevel(main_color_bottom, "none", "red", "orange", "yellow", "green")) %>% 
-  model.matrix(~ main_color_bottom, data = .)
+  mutate(main_color = ifelse(main_color_top == "none", main_color_bottom, main_color_top),
+         main_color = fct_relevel(main_color, "none", "red", "orange", "yellow", "green", "blue")) %>% 
+  model.matrix(~ main_color, data = .)
+main_color = main_color[,-1] # remove intercept (i.e."none") column; will be estimated as separate param in JAGS 
 
-x_det_traits = cbind(traits_num, color_top, color_bottom)
-
+x_det_traits = cbind(traits_num, main_color)
+qr(x_det_traits) # --> Full rank
+qr(cbind(rep(1, nrow(x_det_traits)), x_det_traits)) # --> Still full rank with intercept column, good to go
+saveRDS(as.matrix(x_det_traits), "Data/traits_design_matrix.RDS")
 # ------------------------------------------------------------------------------------- #
 #### Fit models ####
-n_chains = 1 
-n_adapt = 10
-n_burnin = 0
-n_iter = 50
-n_thin = 1
-n_cores = 1
-
 # MSOM 1
 MSOM1_data = list(n_spec = dim(y)[1], n_sites = dim(y)[2], n_visits = dim(y)[3], 
                  y = y, x_state = x_state,
@@ -85,62 +78,10 @@ MSOM1_samples = jags(data = MSOM1_data,
                     inits = MSOM1_inits, 
                     parameters.to.save = MSOM1_params, 
                     model.file = "Butterfly_detection/jags_models/MSOM_1.txt",
-                    n.chains = n_chains, n.adapt = n_adapt, n.burnin = n_burnin, n.iter = n_iter, n.thin = n_thin, 
-                    parallel = T, n.cores = n_cores, DIC = T)
+                    n.chains = 1, n.adapt = 10, n.burnin = 0, n.iter = 50, n.thin = 1, 
+                    parallel = F, n.cores = 1, DIC = T)
+
 saveRDS(MSOM1_samples, file = "Data/models_fit/MSOM/MSOM_1_run2.RDS")
 
 # MSOM 2
-MSOM2_data = list(n_spec = dim(y)[1], n_sites = dim(y)[2], n_visits = dim(y)[3], 
-                  y = y, x_state = x_state,
-                  x_det_day = x_det_day, x_det_elev = x_det_elev, x_det_traits = x_det_traits,
-                  n_pred_occ = ncol(x_state), n_pred_det_env = 4, n_pred_det_traits = ncol(x_det_traits))
-
-MSOM2_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
-
-MSOM2_params = c("alpha_null", "alpha_coef_env", "alpha_coef_traits", "beta_null", "beta_coef", "fit", "fit_pr")
-
-MSOM2_samples = jags(data = MSOM2_data, 
-                     inits = MSOM2_inits, 
-                     parameters.to.save = MSOM2_params, 
-                     model.file = "Butterfly_detection/jags_models/MSOM_2.txt",
-                     n.chains = n_chains, n.adapt = n_adapt, n.burnin = n_burnin, n.iter = n_iter, n.thin = n_thin, 
-                     parallel = T, n.cores = n_cores, DIC = T)
-saveRDS(MSOM2_samples, file = "Data/models_fit/MSOM/MSOM_2_run2.RDS")
-
-# MSOM 3
-MSOM3_data = list(n_spec = dim(y)[1], n_sites = dim(y)[2], n_visits = dim(y)[3], 
-                  y = y, x_state = x_state,
-                  x_det_day = x_det_day, x_det_elev = x_det_elev, x_det_traits = x_det_traits,
-                  year = year, n_year = n_distinct(year), observer = observer, n_observer = n_distinct(observer),
-                  n_pred_occ = ncol(x_state), n_pred_det_env = 4, n_pred_det_traits = ncol(x_det_traits))
-
-MSOM3_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
-
-MSOM3_params = c("alpha_null", "alpha_coef_env", "alpha_coef_traits","beta_null", "beta_coef", "fit", "fit_pr")
-
-MSOM3_samples = jags(data = MSOM3_data, 
-                     inits = MSOM3_inits, 
-                     parameters.to.save = MSOM3_params, 
-                     model.file = "Butterfly_detection/jags_models/MSOM_3.txt",
-                     n.chains = n_chains, n.adapt = n_adapt, n.burnin = n_burnin, n.iter = n_iter, n.thin = n_thin, 
-                     parallel = T, n.cores = n_cores, DIC = T)
-saveRDS(MSOM3_samples, file = "Data/models_fit/MSOM/MSOM_3_run2.RDS")
-
-# MSOM 4
-MSOM4_data = list(n_spec = dim(y)[1], n_sites = dim(y)[2], n_visits = dim(y)[3], 
-                   y = y, x_state = x_state, 
-                   x_det_day = x_det_day, x_det_elev = x_det_elev, x_det_traits = x_det_traits,
-                   n_pred_occ = ncol(x_state), n_pred_det_l1 = 4, n_pred_det_l2 = ncol(x_det_traits))
-
-
-MSOM4_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
-
-MSOM4_params = jags_params = c("alpha_null", "alpha_coef_l1", "alpha_coef_l2", "beta_null", "beta_coef", "fit", "fit_pr")
-
-MSOM4_samples = jags(data = MSOM4_data, 
-                     inits = MSOM4_inits, 
-                     parameters.to.save = MSOM4_params, 
-                     model.file = "Butterfly_detection/jags_models/MSOM_4.txt",
-                     n.chains = n_chains, n.adapt = n_adapt, n.burnin = n_burnin, n.iter = n_iter, n.thin = n_thin, 
-                     parallel = T, n.cores = n_cores, DIC = T)
-saveRDS(MSOM4_samples, file = "Data/models_fit/MSOM/MSOM_4_run1.RDS")
+# ...

@@ -1,3 +1,11 @@
+# ------------------------------------------------------------------------------------- #
+#                        COMPLEX MULTI SPECIES OCCUPANCY MODEL
+# Random effect of year on occupancy intercept
+# Additional term in detection submodel representing observer-related variation
+# Effects of traits on detection intercept
+# Community hyperpriors on species-level parameters
+# --------------------------------------------------------------------------------------#
+
 model{
   #          Priors            #
   # -------------------------- #

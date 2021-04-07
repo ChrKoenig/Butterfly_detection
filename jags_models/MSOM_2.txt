@@ -1,3 +1,11 @@
+# ------------------------------------------------------------------------------------- #
+#                        ENHANCED MULTI SPECIES OCCUPANCY MODEL
+# NO effects of year on occupancy
+# NO effects of observer on detection
+# Effects of traits on detection intercept
+# Community hyperpriors on species-level parameters
+# --------------------------------------------------------------------------------------#
+
 model{
   #          Priors            #
   # -------------------------- #
@@ -33,6 +41,7 @@ model{
   
   # Species-level slopes
   for(i in 1:n_spec){
+    beta_null[i] ~ dnorm(mu_beta_null, tau_beta_null)
     for(p in 1:n_pred_occ){
       beta_coef[i,p] ~ dnorm(mu_beta_coef[p], tau_beta_coef[p])
     }

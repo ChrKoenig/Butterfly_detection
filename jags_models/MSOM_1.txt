@@ -1,3 +1,11 @@
+# ------------------------------------------------------------------------------------- #
+#                        BASIC MULTI SPECIES OCCUPANCY MODEL
+# NO effects of year on occupancy
+# NO effects of observer on detection
+# NO effects of traits on detection
+# Community hyperpriors on species-level parameters
+# --------------------------------------------------------------------------------------#
+
 model{
   #          Priors            #
   # -------------------------- #
