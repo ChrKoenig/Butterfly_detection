@@ -1,40 +1,37 @@
 model{
-  #          Priors            #
-  # -------------------------- #
-  ## 1. Detection model ##
-  alpha_null ~ dnorm(0, 0.0001) T(-12,12)
-  for(p in 1:n_pred_det) {
-    alpha_coef[p] ~ dnorm(0, 0.001) T(-12,12)
-  }
+  # Priors for detection probability  
+    alpha_null ~ dnorm(0, 0.0001) T(-12,12)
+    alpha_day ~ dnorm(0, 0.0001) T(-12,12)
+    alpha_day_sq ~ dnorm(0, 0.0001) T(-12,12)
+    alpha_elev ~ dnorm(0, 0.0001) T(-12,12)
+    alpha_elev_sq ~ dnorm(0, 0.0001) T(-12,12)
 
-  ## 2. State model ##
-  beta_null ~ dnorm(0, 0.0001) T(-12,12)
-  for(p in 1:n_pred_occ){
-    beta_coef[p] ~ dnorm(0, 0.0001) T(-12,12)
-  }        
+  # Priors for occupancy probability
+    beta_null ~ dnorm(0, 0.0001) T(-12,12)
+    for(p in 1:n_pred_occ){
+      beta_coef[p] ~ dnorm(0, 0.0001) T(-12,12)
+    }        
     
   # Likelihood
-  for(i in 1:n_sites){ 
-    z[i] ~ dbern(psi[i]) # True Occupancy
-    logit(psi[i]) <- beta_null + inprod(beta_coef, x_state[i,]) # Probability of true occupancy
-    for(j in 1:n_visits){
-      y[i,j] ~ dbin(mu[i,j], 2) # Probability of observation in two visits
-      mu[i,j] = z[i] * p[i,j]
-      logit(p[i,j]) <- alpha_null + 
-                       alpha_coef[1] * elev[i]  + 
-                       alpha_coef[2] * elev_sq[i] +
-                       alpha_coef[3] * day[i,j] + 
-                       alpha_coef[4] * day_sq[i,j]
+    for(i in 1:n_sites){ 
+      z[i] ~ dbern(psi[i]) # True Occupancy
+      logit(psi[i]) <- beta_null + inprod(beta_coef, x_occ[i,]) # Probability of true occupancy
+      for(j in 1:n_visits){
+        y[i,j] ~ dbin(mu[i,j], 2) # Probability of observation in two visits
+        mu[i,j] = z[i] * p[i,j]
+        logit(p[i,j]) <- alpha_null + 
+                         alpha_elev * elev[i]  + 
+                         alpha_elev_sq * elev_sq[i] +
+                         alpha_day * day[i,j] + 
+                         alpha_day_sq * day_sq[i,j]
         
-      # posterior predictive distribution
-      y_pr[i,j] ~ dbin(mu[i,j], 2)
-      
-      # Chi-square test statistic and posterior predictive check
-      chi2[i,j] <- pow((y[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.0001) # observed
-      chi2_pr[i,j] <- pow((y_pr[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.0001) # expected
+        # Chi-square test statistic and posterior predictive check
+        chi2[i,j] <- pow((y[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.0001) # observed
+        y_pr[i,j] ~ dbin(mu[i,j], 2)
+        chi2_pr[i,j] <- pow((y_pr[i,j] - 2*mu[i,j]),2) / (sqrt(2*mu[i,j]) + 0.0001) # expected
+      }
     }
+    # Derived measures
+    fit = sum(chi2)
+    fit_pr = sum(chi2_pr)
   }
-  # Derived measures
-  fit = sum(chi2)
-  fit_pr = sum(chi2_pr)
-}
