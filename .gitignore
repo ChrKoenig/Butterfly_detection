@@ -2,3 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+/deprecated/
+/model_examples/
+/jags_models/deprecated/
+
