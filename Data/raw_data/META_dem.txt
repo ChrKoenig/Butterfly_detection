@@ -1,0 +1,3 @@
+ch100.grd contains one raster layer with elevation at 100m resolution.
+
+elev.1km.grd is aggregated from "ch100". It is a raster stack with 3 layers at 1km resolution and reports the median, minimum and maximum elevation found in this 1km cell (with 100m resolution as reference).

@@ -1,0 +1,28 @@
+cat_4,id_4,cat_17,id_17,cat_27,id_27
+Settlement and urban areas,1,Industrial and commerical areas,1,Industrial and commerical areas,1
+Settlement and urban areas,1,Building areas,2,Residential areas,2
+Settlement and urban areas,1,Building areas,2,Public building areas,3
+Settlement and urban areas,1,Building areas,2,Agricultural building areas,4
+Settlement and urban areas,1,Building areas,2,Unspecified building areas,5
+Settlement and urban areas,1,Transportation areas,3,Road areas,6
+Settlement and urban areas,1,Transportation areas,3,Railway areas,7
+Settlement and urban areas,1,Transportation areas,3,Airports and airfields,8
+Settlement and urban areas,1,Special urban areas,4,Species urban areas,9
+Settlement and urban areas,1,Recreational areas and cemeteries,5,Recreational areas and cemeteries,10
+Agricultural areas,2,"Orchard, vineyard and horticulture areas",6,Orchard,11
+Agricultural areas,2,"Orchard, vineyard and horticulture areas",6,Vineyard,12
+Agricultural areas,2,"Orchard, vineyard and horticulture areas",6,Horticulture,13
+Agricultural areas,2,Arable land,7,Arable land,14
+Agricultural areas,2,"Meadows, farm pastures",8,Meadows,15
+Agricultural areas,2,"Meadows, farm pastures",8,Farm pastures,16
+Agricultural areas,2,Alpine agricultural areas,9,Alpine meadows,17
+Agricultural areas,2,Alpine agricultural areas,9,Alpine pastures,18
+Wooded areas,3,Forest (except brush forest),10,Closed forest,19
+Wooded areas,3,Forest (except brush forest),10,Open forest,20
+Wooded areas,3,Brush forest,11,Brush forest,21
+Wooded areas,3,Woods,12,Woods,22
+Unproductive areas,4,Lakes,13,Lakes,23
+Unproductive areas,4,Rivers,14,Rivers,24
+Unproductive areas,4,Unproductive vegetation,15,Unproductive vegetation,25
+Unproductive areas,4,Bare land,16,Bare land,26
+Unproductive areas,4,"Glaciers, perpetual snow",17,"Glaciers, perpetual snow",27
