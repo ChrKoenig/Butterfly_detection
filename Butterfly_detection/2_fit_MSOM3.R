@@ -69,7 +69,7 @@ qr(x_det_traits) # --> Full rank
 n_chains = 4
 n_adapt = 300
 n_burnin = 4000
-n_iter = 12000
+n_sample = 8000
 n_thin = 80
 n_cores = 4
 
@@ -83,10 +83,9 @@ MSOM3_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
 
 MSOM3_params = jags_params = c("mu_alpha_null_l1", "alpha_null_l1", "alpha_coef_l1", "alpha_null_l2", "alpha_coef_l2", "beta_null", "beta_coef")
 
-MSOM3_samples = jags(data = MSOM3_data, 
-                     inits = MSOM3_inits, 
-                     parameters.to.save = MSOM3_params, 
-                     model.file = "Butterfly_detection/jags_models/MSOM_3.txt",
-                     n.chains = n_chains, n.adapt = n_adapt, n.burnin = n_burnin, n.iter = n_iter, n.thin = n_thin, 
-                     parallel = T, n.cores = n_cores, DIC = T)
-saveRDS(MSOM3_samples, file = "Data/models_fit/MSOM/MSOM_3.RDS")
+MSOM3_samples = run.jags(model = "Butterfly_detection/jags_models/MSOM_3.txt", 
+                         monitor = MSOM3_params, data = MSOM3_data, inits = MSOM3_inits, 
+                         n.chains = n_chains, burnin = n_burnin, sample = n_sample, adapt = n_adapt, thin = n_thin, 
+                         jags.refresh = 30, method = "rjparallel")
+
+saveRDS(MSOM3_samples, file = "Data/models_fit/MSOM/MSOM_3_rjags.RDS")

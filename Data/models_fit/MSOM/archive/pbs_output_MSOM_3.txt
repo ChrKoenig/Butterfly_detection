@@ -1,8 +1,0 @@
-
-Processing function input....... 
-
-Converting data frame 'x_det_traits' to matrix.
-
-Done. 
- 
-Beginning parallel processing using 4 cores. Console output will be suppressed.

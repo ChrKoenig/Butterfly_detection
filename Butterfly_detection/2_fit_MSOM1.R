@@ -1,7 +1,7 @@
-library("tidyverse")
-library("abind")
-library("rjags")
-library("coda")
+library(tidyverse)
+library(abind)
+library(runjags)
+library(rjags)
 
 setwd("~/Butterfly_project")
 
@@ -10,7 +10,6 @@ load("Data/observations_completed.RData")
 load("Data/sample_sites.RData")
 load("Data/species_final.RData")
 
-print(sessionInfo())
 # ------------------------------------------------------------------------------------- #
 #### Prepare Data ####
 observations_completed = observations_completed %>% 
@@ -52,12 +51,12 @@ x_det_elev = as.vector(scale(as.numeric(x_det$elevation)))
 
 # ------------------------------------------------------------------------------------- #
 #### Fit models ####
-n_chains = 1
+n_chains = 4
 n_adapt = 300
 n_burnin = 4000
-n_iter = 12000
+n_sample = 8000
 n_thin = 80
-n_cores = 1
+n_cores = 4
 
 # MSOM 1
 MSOM1_data = list(n_spec = dim(y)[1], n_sites = dim(y)[2], n_visits = dim(y)[3], 
@@ -69,9 +68,9 @@ MSOM1_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
 
 MSOM1_params = c("alpha_null", "alpha_coef_env", "beta_null", "beta_coef")
 
-MSOM1_model = jags.model(file = "Butterfly_detection/jags_models/MSOM_1.txt", data = MSOM1_data, inits = MSOM1_inits, 
-                         n.chains = n_chains, n.adapt= n_adapt)
-
-MSOM1_samples = coda.samples(MSOM1_model, MSOM1_params, n.iter = 12000, thin = 10)
+MSOM1_samples = run.jags(model = "Butterfly_detection/jags_models/MSOM_1.txt", 
+                       monitor = MSOM1_params, data = MSOM1_data, inits = MSOM1_inits, 
+                       n.chains = n_chains, burnin = n_burnin, sample = n_sample, adapt = n_adapt, thin = n_thin, 
+                       jags.refresh = 30, method = "rjparallel")
  
-saveRDS(MSOM1_samples, file = "Data/models_fit/MSOM/MSOM_1_rjags.RDS")
+saveRDS(MSOM1_samples, file = "Data/models_fit/MSOM_1_rjags.RDS")

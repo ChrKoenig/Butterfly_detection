@@ -67,7 +67,7 @@ x_det_traits = cbind(traits_num, main_color)
 n_chains = 4
 n_adapt = 300
 n_burnin = 4000
-n_iter = 12000
+n_sample = 8000
 n_thin = 80
 n_cores = 4
 
@@ -81,10 +81,9 @@ MSOM2_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
 
 MSOM2_params = c("alpha_null", "alpha_coef_env", "alpha_coef_traits", "beta_null", "beta_coef")
 
-MSOM2_samples = jags(data = MSOM2_data, 
-                     inits = MSOM2_inits, 
-                     parameters.to.save = MSOM2_params, 
-                     model.file = "Butterfly_detection/jags_models/MSOM_2.txt",
-                     n.chains = n_chains, n.adapt = n_adapt, n.burnin = n_burnin, n.iter = n_iter, n.thin = n_thin, 
-                     parallel = T, n.cores = n_cores, DIC = T)
-saveRDS(MSOM2_samples, file = "Data/models_fit/MSOM/MSOM_2.RDS")
+MSOM2_samples = run.jags(model = "Butterfly_detection/jags_models/MSOM_2.txt", 
+                         monitor = MSOM2_params, data = MSOM2_data, inits = MSOM2_inits, 
+                         n.chains = n_chains, burnin = n_burnin, sample = n_sample, adapt = n_adapt, thin = n_thin, 
+                         jags.refresh = 30, method = "rjparallel")
+
+saveRDS(MSOM2_samples, file = "Data/models_fit/MSOM_2_rjags.RDS")

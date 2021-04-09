@@ -1,5 +1,5 @@
-#PBS -N MSOM_1_rjags
-#PBS -l ncpus=1,mem=60GB,walltime=1000:00:00
+#PBS -N MSOM_1_par
+#PBS -l ncpus=4,mem=100GB,walltime=1000:00:00
 #PBS -q maoekq
 #PBS -m bea
 #PBS -o ./Data/models_fit/MSOM/MSOM_1_rjags_output.txt

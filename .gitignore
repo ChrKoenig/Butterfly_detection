@@ -2,7 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-/deprecated/
-/model_examples/
-/jags_models/deprecated/
-
+Butterfly_detection/deprecated/
+Butterfly_detection/jags_models/deprecated/
+/Data/
+model_examples/
