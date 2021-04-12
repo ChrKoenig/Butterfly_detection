@@ -1,4 +1,4 @@
-#PBS -N MSOM_1_par
+#PBS -N MSOM_1
 #PBS -l ncpus=4,mem=100GB,walltime=1000:00:00
 #PBS -q maoekq
 #PBS -m bea

@@ -8,7 +8,6 @@ MSOM1 = readRDS("Data/models_fit/MSOM_1.RDS")
 MSOM2 = readRDS("Data/models_fit/MSOM_2.RDS")
 MSOM3 = readRDS("Data/models_fit/MSOM_3.RDS")
 
-
 # ------------------------------------------------------------------------------------- #
 summary(MSOM1)
 summary(MSOM2)

@@ -1,6 +1,7 @@
-library("tidyverse")
-library("abind")
-library("jagsUI")
+library(tidyverse)
+library(abind)
+library(runjags)
+library(rjags)
 
 setwd("~/Butterfly_project")
 
@@ -59,7 +60,7 @@ main_color = species_final %>%
   model.matrix(~ main_color, data = .)
 main_color = main_color[,-1] # remove intercept (i.e."none") column; will be estimated as separate param in JAGS 
 
-x_det_traits = cbind(traits_num, main_color)
+x_det_traits = as.matrix(cbind(traits_num, main_color))
 # qr(x_det_traits) # --> Full rank
 
 # ------------------------------------------------------------------------------------- #
