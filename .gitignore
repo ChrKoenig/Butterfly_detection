@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 .sh
+model_examples/
 Data/
 Figures/
 Manuscript/
