@@ -4,7 +4,6 @@
 # Additional term in detection submodel representing observer-related variation
 # Effects of traits on detection intercept
 # Community hyperpriors on species-level parameters
-# L1 regularization (Laplace prior) on trait coefficients
 # --------------------------------------------------------------------------------------#
 
 model{

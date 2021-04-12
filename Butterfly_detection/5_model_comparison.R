@@ -4,6 +4,9 @@ library("corrplot")
 setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
 rm(list=ls())
 
+load("Data/species_final.RData")
+load("Data/traits_final.RData")
+
 ### PREPARE RESULTS ###
 # ----
 ssom_coefs = bind_rows(lapply(species_final$spec_id, FUN = function(spec){
@@ -54,19 +57,17 @@ plot_correlations("asp")
 plot_correlations("slp")
 
 ### Trait effects ###
-load("Data/traits_final.RData")
-
 # SSOM
 ssom_trait_eff = lm(ssom_coefs$alpha_null ~ ., data = traits_final[,-1])
 ssom_trait_sum = data.frame(summary(ssom_trait_eff)$coefficients[-1,1:2])
-colnames(ssom_trait_sum) = c("estimate", "std_error")
+colnames(ssom_trait_sum) = c("estimate", "sd")
 ssom_trait_sum$model = "SSOM"
 ssom_trait_sum$var = rownames(ssom_trait_sum)
 
 # MSOM1
 msom1_trait_eff = lm(msom1_coefs$alpha_null ~ ., data = traits_final[,-1])
 msom1_trait_sum = data.frame(summary(msom1_trait_eff)$coefficients[-1,1:2])
-colnames(msom1_trait_sum) = c("estimate", "std_error")
+colnames(msom1_trait_sum) = c("estimate", "sd")
 msom1_trait_sum$model = "MSOM1"
 msom1_trait_sum$var = rownames(ssom_trait_sum)
 
@@ -75,7 +76,7 @@ msom2_trait_mean = c(msom2$mean$alpha_traits_num[1:4], msom2$mean$alpha_color_bo
                      msom2$mean$alpha_color_top[-1], msom2$mean$alpha_traits_num[5:8])
 msom2_trait_sd = c(msom2$sd$alpha_traits_num[1:4], msom2$sd$alpha_color_bottom[-1], 
                      msom2$sd$alpha_color_top[-1], msom2$sd$alpha_traits_num[5:8])
-msom2_trait_sum = data.frame(estimate = msom2_trait_mean, std_error = msom2_trait_sd,
+msom2_trait_sum = data.frame(estimate = msom2_trait_mean, sd = msom2_trait_sd,
                              model = "MSOM2", var = rownames(ssom_trait_sum))
 
 # MSOM3
@@ -83,16 +84,21 @@ msom3_trait_mean = c(msom3$mean$alpha_traits_num[1:4], msom3$mean$alpha_color_bo
                      msom3$mean$alpha_color_top[-1], msom3$mean$alpha_traits_num[5:8])
 msom3_trait_sd = c(msom3$sd$alpha_traits_num[1:4], msom3$sd$alpha_color_bottom[-1], 
                    msom3$sd$alpha_color_top[-1], msom3$sd$alpha_traits_num[5:8])
-msom3_trait_sum = data.frame(estimate = msom3_trait_mean, std_error = msom3_trait_sd,
+msom3_trait_sum = data.frame(estimate = msom3_trait_mean, sd = msom3_trait_sd,
                              model = "MSOM3", var = rownames(ssom_trait_sum))
 
 # Plot trait effects
 plot_df = bind_rows(ssom_trait_sum, msom1_trait_sum, msom2_trait_sum, msom3_trait_sum) %>%
   remove_rownames() %>% 
-  mutate(model = fct_relevel(model, "SSOM"))
+  mutate(model = fct_relevel(model, "SSOM", "MSOM1", "MSOM2", "MSOM3"),
+         var = fct_relevel(var, "Vol_min", "WIn", "HSI", "FMo_Average", "mean_sat_top", "mean_lgt_top", "mean_sat_bottom", "mean_lgt_bottom"))
 
-ggplot(plot_df, aes(x = estimate, y = var, xmin = estimate-std_error, xmax = estimate+std_error, color = model)) +
-  geom_pointrange(position = position_dodge(0.5)) +
+ggplot(plot_df, aes(x = estimate, y = fct_rev(var), xmin = estimate-2*sd, xmax = estimate+2*sd, color = fct_rev(model))) +
+  geom_pointrange(position = position_dodge(0.5), fatten = 2) +
+  labs(color = "Model") +
+  guides(color = guide_legend(reverse=T)) +
   theme_light() +
+  theme(axis.title.y = element_blank())
+
 
 

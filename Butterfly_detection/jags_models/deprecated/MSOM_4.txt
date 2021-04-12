@@ -1,3 +1,11 @@
+# ------------------------------------------------------------------------------------- #
+#                        ENHANCED MULTI SPECIES OCCUPANCY MODEL
+# NO effects of year on occupancy
+# NO effects of observer on detection
+# Effects of traits on detection slope
+# Community hyperpriors on species-level parameters
+# --------------------------------------------------------------------------------------#
+
 model{
   #          Priors            #
   # -------------------------- #
