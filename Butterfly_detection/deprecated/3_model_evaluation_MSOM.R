@@ -14,7 +14,6 @@ summary(MSOM1)
 summary(MSOM2)
 summary(MSOM3)
 
-
 #### Convergence ####
 convergence_table = function(model){
   bind_cols(lapply(model$Rhat, function(x){
@@ -34,7 +33,7 @@ convergence_table = function(model){
 view(convergence_table(MSOM1))
 view(convergence_table(MSOM2))
 view(convergence_table(MSOM3))
-view(convergence_table(MSOM3))
+
 
 #### Traceplots
 # MSOM1
@@ -65,7 +64,7 @@ plot_response_MSOM_std = function(model, spec, variable, process, same_plot = F)
   # Get species index
   load("Data/species_final.RData")
   traits_design_matrix = readRDS("Data/traits_design_matrix.RDS")
-
+  
   if(!spec %in% species_final$spec_id){
     stop("unknown species")
   } else {
@@ -77,9 +76,9 @@ plot_response_MSOM_std = function(model, spec, variable, process, same_plot = F)
   n_samples = model_fit$mcmc.info$n.samples
   if(process == "detection"){
     intercept = switch(model,
-      "MSOM_1" = model_fit$sims.list$alpha_null[,i],
-      "MSOM_2" = model_fit$sims.list$alpha_null + model_fit$sims.list$alpha_coef_traits %*% as.vector(traits_design_matrix[i,]),  
-      "MSOM_3" = model_fit$sims.list$mu_alpha_null + model_fit$sims.list$alpha_coef_traits %*% as.vector(traits_design_matrix[i,])
+                       "MSOM_1" = model_fit$sims.list$alpha_null[,i],
+                       "MSOM_2" = model_fit$sims.list$alpha_null + model_fit$sims.list$alpha_coef_traits %*% as.vector(traits_design_matrix[i,]),  
+                       "MSOM_3" = model_fit$sims.list$mu_alpha_null + model_fit$sims.list$alpha_coef_traits %*% as.vector(traits_design_matrix[i,])
     )
     coefs = model_fit$sims.list$alpha_coef_env[,i,]
     colnames(coefs) = c("elev", "elev_sq", "day", "day_sq")

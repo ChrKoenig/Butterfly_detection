@@ -76,18 +76,18 @@ model{
                           alpha_coef_env[i,3] * x_det_day[j,k] +
                           alpha_coef_env[i,4] * pow(x_det_day[j,k], 2)
         
-        # posterior predictive distribution
-        y_pr[i,j,k] ~ dbin(mu[i,j,k], 2)
-        
-        # Chi-square test statistic and posterior predictive check
-        chi2[i,j,k] <- pow((y[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # observed
-        chi2_pr[i,j,k] <- pow((y_pr[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # expected
+        ## posterior predictive distribution
+        #y_pr[i,j,k] ~ dbin(mu[i,j,k], 2)
+        #
+        ## Chi-square test statistic and posterior predictive check
+        #chi2[i,j,k] <- pow((y[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # observed
+        #chi2_pr[i,j,k] <- pow((y_pr[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # expected
       }
     }
   }
   
   #       Derived measures     #
   # -------------------------- #
-  fit = sum(chi2)
-  fit_pr = sum(chi2_pr)
+  #fit = sum(chi2)
+  #fit_pr = sum(chi2_pr)
 }

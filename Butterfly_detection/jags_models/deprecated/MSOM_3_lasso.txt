@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------------------- #
-#                        ENHANCED MULTI SPECIES OCCUPANCY MODEL
-# NO effects of year on occupancy
-# NO effects of observer on detection
+#                        COMPLEX MULTI SPECIES OCCUPANCY MODEL
+# Random effect of year on occupancy intercept
+# Additional term in detection submodel representing observer-related variation
 # Effects of traits on detection intercept
 # Community hyperpriors on species-level parameters
 # --------------------------------------------------------------------------------------#
@@ -11,10 +11,16 @@ model{
   # -------------------------- #
   
   ## 1. Detection model ##
-  # Intercept
-  alpha_null ~ dnorm(0, 0.0001) T(-12,12)
+  # Intercept with random observer effect
+  for(o in 1:n_observer){
+    alpha_null[o] ~ dnorm(mu_alpha_null, tau_alpha_null)
+  }
+  mu_alpha_null ~ dnorm(0, 0.0001) T(-12,12)
+  tau_alpha_null ~ dgamma(0.01,0.01)
+  
+  # Trait effects on intercept
   for(p in 1:n_pred_det_traits){
-    alpha_coef_traits[p] ~ dnorm(0, 0.0001) T(-12,12)
+    alpha_coef_traits[p] ~ ddexp(0, 0.0001) T(-12,12)
   }
   
   # Hyperpriors for slopes
@@ -39,9 +45,10 @@ model{
     tau_beta_coef[p] ~ dgamma(0.01,0.01)
   }
   
-  # Species-level slopes
   for(i in 1:n_spec){
-    beta_null[i] ~ dnorm(mu_beta_null, tau_beta_null)
+    for(t in 1:n_year){
+      beta_null[i,t] ~ dnorm(mu_beta_null, tau_beta_null)
+    }
     for(p in 1:n_pred_occ){
       beta_coef[i,p] ~ dnorm(mu_beta_coef[p], tau_beta_coef[p])
     }
@@ -51,7 +58,7 @@ model{
   # -------------------------- #
   for(i in 1:n_spec){
     for(j in 1:n_sites){
-      logit(psi[i,j]) = beta_null[i] + inprod(beta_coef[i,], x_state[j,])
+      logit(psi[i,j]) = beta_null[i,year[j]] + inprod(beta_coef[i,], x_state[j,])
       
       for(k in 1:n_visits){
         # Probability of observation in two visits (secondary samples)
@@ -62,25 +69,13 @@ model{
         z[i,j,k] ~ dbern(psi[i,j])
         
         # detection probability
-        logit(p[i,j,k]) = alpha_null +
+        logit(p[i,j,k]) = alpha_null[observer[i]] +
                           inprod(alpha_coef_traits, x_det_traits[i,]) +
                           alpha_coef_env[i,1] * x_det_elev[j] + 
                           alpha_coef_env[i,2] * pow(x_det_elev[j], 2) +
                           alpha_coef_env[i,3] * x_det_day[j,k] +
                           alpha_coef_env[i,4] * pow(x_det_day[j,k], 2)
-        
-        # posterior predictive distribution
-        y_pr[i,j,k] ~ dbin(mu[i,j,k], 2)
-        
-        # Chi-square test statistic and posterior predictive check
-        chi2[i,j,k] <- pow((y[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # observed
-        chi2_pr[i,j,k] <- pow((y_pr[i,j,k] - 2*mu[i,j,k]),2) / (sqrt(2*mu[i,j,k]) + 0.0001) # expected
       }
     }
   }
-  
-  #       Derived measures     #
-  # -------------------------- #
-  fit = sum(chi2)
-  fit_pr = sum(chi2_pr)
 }

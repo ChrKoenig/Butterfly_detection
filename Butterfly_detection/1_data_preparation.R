@@ -1,9 +1,8 @@
 library("raster")
 library("sp")
 library("tidyverse")
-library("taxize")
 
-setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
+setwd("~/Butterfly_project/")
 rm(list = ls())
 
 # ------------------------------------------------------------------------------------- #
@@ -157,3 +156,48 @@ extr_env = cbind(extr_climtopo, extr_landuse) %>%
 
 sample_sites = SpatialPolygonsDataFrame(site_polygons, extr_env, match.ID = T)
 save(sample_sites, file =  "Data/sample_sites.RData")
+
+# ------------------------------------------------------------------------------------- #
+#### Trait data ####
+# traits_altermatt = read_csv("Data/raw_data/traits/traits_Altermatt.csv") %>% 
+#  select(species, generations, hibernation, larva_diet)
+
+synonym_lookup = drop_na(read_csv("Data/synonym_lookup_edit.csv"))
+
+traits_zeuss = read_delim("Data/raw_data/traits/Europa_schmetterlinge_data_art_final.csv", delim = ";", locale = locale(decimal_mark = ",")) %>% 
+  rowwise() %>% 
+  mutate(genus = strsplit(file, split = "_")[[1]][2],
+         epithet = strsplit(file, split = "_")[[1]][3],
+         species = paste(genus, epithet),
+         color = case_when(meanHue*360 < 20 ~ "red",
+                           meanHue*360 < 50 ~ "orange",
+                           meanHue*360 < 70 ~ "yellow",
+                           meanHue*360 < 160 ~ "green",
+                           meanHue*360 < 200 ~ "cyan",
+                           meanHue*360 < 280 ~ "blue",
+                           meanHue*360 < 330 ~ "magenta",
+                           TRUE ~ "red")) %>% 
+  full_join(synonym_lookup, by = c("species" = "name_Zeuss")) %>% 
+  mutate(species = replace(species, !is.na(name_BDM), name_BDM)) %>% 
+  dplyr::select(species, generations = voltinism_num, color, saturation = meanChroma, 
+                brightness = meanValue, body_area = bodysize_cm2) 
+
+traits_final = traits_zeuss
+save(traits_final, file =  "Data/traits_final.RData")
+
+# ------------------------------------------------------------------------------------- #
+#### Final species selection (observed + traits available)
+# traits_only = sort(setdiff(traits_final$species, unique(observations_completed$species)))
+# obs_only = sort(setdiff(unique(observations_completed$species), traits_final$species))
+# 
+# # Manually match synonyms, BDM naming convention has priority
+# write_csv(data.frame(name_BDM = obs_only, name_Zeuss = ""), path = "Data/synonym_lookup.csv")
+# 
+# # Load species lookup table
+# synonym_lookup = drop_na(read_csv("Data/synonym_lookup_edit.csv"))
+
+species_final = traits_final %>% 
+  inner_join(distinct(dplyr::select(observations_completed, "spec_id", "species"))) %>% 
+  dplyr::select(species, spec_id)
+
+save(species_final, file = "Data/species_final.RData")
