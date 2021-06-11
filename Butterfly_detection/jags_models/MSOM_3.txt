@@ -9,15 +9,14 @@ model{
   # -------------------------- #
   ## 1. Detection model ##
   # Hyperpriors for intercept
-  mu_alpha_null_l1 ~ dnorm(0, 0.0001) T(-12,12) # species specific intercept
-  # OLD tau_alpha_null_l1 = dgamma(0.01,0.01)
+  mu_alpha_null_l1 ~ dnorm(0, 0.001) # species specific intercept
   tau_alpha_null_l1 <- pow(sigma_alpha_null_l1, -2)
   sigma_alpha_null_l1 ~ dunif(0,100)
 
   # Hyperpriors for trait effects on slopes
-  alpha_null_l2 ~ dnorm(0, 0.0001) T(-12,12)
+  alpha_null_l2 ~ dnorm(0, 0.001)
   for(p in 1:n_pred_det_l2){
-    alpha_coef_l2[p] ~ dnorm(0, 0.0001) T(-12,12)
+    alpha_coef_l2[p] ~ dnorm(0, 0.001) 
   }
 
   # Priors for slopes
@@ -26,7 +25,6 @@ model{
     for(p in 1:n_pred_det_l1){
       alpha_coef_l1[i,p] ~ dnorm(mu_alpha_coef_l1[i,p], tau_alpha_coef_l1[i,p]) T(-12,12)
       mu_alpha_coef_l1[i,p] = alpha_null_l2 + inprod(alpha_coef_l2, x_det_traits[i,])
-      # OLD: tau_alpha_coef_l1[i,p] ~ dgamma(0.01,0.01)
       tau_alpha_coef_l1[i,p] <- pow(sigma_alpha_coef_l1[i,p], -2)
       sigma_alpha_coef_l1[i,p] ~ dunif(0, 100)
     }
@@ -34,14 +32,12 @@ model{
 
   ## 2. State model ##
   # Hyperpriors for state model
-  mu_beta_null ~ dnorm(0, 0.0001) T(-12,12)
-  # OLD: tau_beta_null ~ dgamma(0.01,0.01)
+  mu_beta_null ~ dnorm(0, 0.001) 
   tau_beta_null <- pow(sigma_beta_null, -2)
   sigma_beta_null ~ dunif(0,100)
   
   for(p in 1:n_pred_occ) {
-    mu_beta_coef[p] ~ dnorm(0, 0.0001) T(-12,12)
-    # OLD: tau_beta_coef[p] ~ dgamma(0.01,0.01)
+    mu_beta_coef[p] ~ dnorm(0, 0.001)
     tau_beta_coef[p] <- pow(sigma_beta_coef[p], -2)
     sigma_beta_coef[p] ~ dunif(0,100)
   }

@@ -66,25 +66,31 @@ x_det_traits = as.matrix(cbind(traits_num, main_color))
 # ------------------------------------------------------------------------------------- #
 #### Fit models ####
 n_chains = 4
-n_adapt = 300
-n_burnin = 4000
-n_sample = 8000
-n_thin = 80
+n_adapt = 1000 
+n_burnin = 0
+n_sample = 0
+n_thin = 1
 n_cores = 4
 
 # MSOM 2
-MSOM2_data = list(n_spec = dim(y)[1], n_sites = dim(y)[2], n_visits = dim(y)[3], 
+MSOM2_data = list(n_spec = dim(y)[1], n_sites = dim(y)[2], n_visits = dim(y)[3],
                   y = y, x_state = x_state,
                   x_det_day = x_det_day, x_det_elev = x_det_elev, x_det_traits = x_det_traits,
                   n_pred_occ = ncol(x_state), n_pred_det_env = 4, n_pred_det_traits = ncol(x_det_traits))
 
 MSOM2_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
 
-MSOM2_params = c("alpha_null", "alpha_coef_env", "alpha_coef_traits", "beta_null", "beta_coef")
+MSOM2_params = c("alpha_null", "alpha_coef_env", "alpha_coef_traits", "beta_null", "beta_coef", "deviance")
 
-MSOM2_samples = run.jags(model = "Butterfly_detection/jags_models/MSOM_2.txt", 
-                         monitor = MSOM2_params, data = MSOM2_data, inits = MSOM2_inits, 
-                         n.chains = n_chains, burnin = n_burnin, sample = n_sample, adapt = n_adapt, thin = n_thin, 
-                         jags.refresh = 30, method = "rjparallel")
+MSOM2_samples = run.jags(model = "Butterfly_detection/jags_models/MSOM_2.txt",
+                         monitor = MSOM2_params, data = MSOM2_data, inits = MSOM2_inits,
+                         n.chains = n_chains, burnin = n_burnin, sample = n_sample, adapt = n_adapt, thin = n_thin,
+                         jags.refresh = 30, summarise = TRUE, method = "rjparallel")
 
-saveRDS(MSOM2_samples, file = "Data/models_fit/MSOM_2_rjags.RDS")
+saveRDS(MSOM2_samples, file = "//import/calc9z/data-zurell/koenig/Butterfly_models_fit/MSOM2/MSOM2_1.RDS")
+
+for(i in 2:15){
+  MSOM2 = readRDS(paste0("//import/calc9z/data-zurell/koenig/Butterfly_models_fit/MSOM2/MSOM2_", i-1,".RDS"))
+  MSOM2_ext = extend.jags(MSOM2, sample = 1000, burnin = 0, adapt = 0)
+  saveRDS(MSOM2_ext, file = paste0("//import/calc9z/data-zurell/koenig/Butterfly_models_fit/MSOM2/MSOM2_", i,".RDS"))
+}
