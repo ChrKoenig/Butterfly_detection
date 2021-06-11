@@ -8,3 +8,6 @@ Data/
 Figures/
 Manuscript/
 **/deprecated/
+*error.txt
+*output.txt
+
