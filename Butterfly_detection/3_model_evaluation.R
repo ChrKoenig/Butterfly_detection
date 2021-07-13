@@ -1,98 +1,113 @@
 library("tidyverse")
-library("jagsUI")
+library("coda")       # mcmc/coda objects
+library("runjags")    # JAGS wrapper
+library("bayesplot")  # plotting mcmc/coda objects
 
 setwd("~/ownCloud/Projects/Berlin/06_Butterfly_detection/")
 rm(list=ls())
 load("Data/species_final.RData")
-MSOM1 = readRDS("Data/models_fit/MSOM_1.RDS")
-MSOM2 = readRDS("Data/models_fit/MSOM_2.RDS")
-MSOM3 = readRDS("Data/models_fit/MSOM_3.RDS")
 
-# ------------------------------------------------------------------------------------- #
-summary(MSOM1)
-summary(MSOM2)
-summary(MSOM3)
+# ------------------------------------------------------- #
+#                Convergence Diagnostics               ####
+# ------------------------------------------------------- #
+burnin = 4000
+thin = 100
 
-#### Convergence ####
-convergence_table = function(model){
-  bind_cols(lapply(model$Rhat, function(x){
-    if(length(dim(x)) == 0){
-      return(rep(x < 1.1 & x > 0.9, 105))
-    } else if(length(dim(x)) == 1 & length(x) == 105){
-      return(x < 1.1 & x > 0.9)
-    } else if(length(dim(x)) == 1 & length(x) != 105){ # random effects 
-      return(rep(all(x < 1.1 & x > 0.9), 105))
-    } else if(length(dim(x)) > 1){
-      apply(x, 1, function(r){all(r < 1.1 & r > 0.9)})
-    }
-  })) %>% add_column(spec_id = species_final$spec_id, .before = 1)
-}
+## MSOM1 ####
+MSOM1 = readRDS("~/Data/Butterfly_models_fit/MSOM1/MSOM1_15.RDS")      # Full MCMC chain without burnin and thinning
+MSOM1_mcmc = MSOM1$mcmc[seq(from = burnin, to = 14000, by = thin),,]   # remove burnin, apply thinning
+MSOM1_summary = summary(as.mcmc.list(lapply(MSOM1_mcmc, as.mcmc)))     # create summary
 
-### Overview
-view(convergence_table(MSOM1))
-view(convergence_table(MSOM2))
-view(convergence_table(MSOM3))
+# Look at random species
+spec_index = sample(1:105, 1)                                                        # Re-run multiple times   
+bayesplot::mcmc_trace(MSOM1_mcmc, regex_pars = paste0("\\[", spec_index, "[^0-9]"))  # Re-run multiple times
+bayesplot::mcmc_areas(MSOM1_mcmc, regex_pars = paste0("\\[", spec_index, "[^0-9]"))  # Re-run multiple times
 
+# Look at some critical parameters
+bayesplot::mcmc_trace(MSOM1_mcmc, regex_pars = "alpha_null")
+bayesplot::mcmc_trace(MSOM1_mcmc, regex_pars = "beta_null")
+bayesplot::mcmc_trace(MSOM1$mcmc, regex_pars = "beta_coef\\[[0-9]*,6\\]")
 
-#### Traceplots
-# MSOM1
-traceplot(MSOM1, parameters = sprintf("alpha_null[c(%s)]", paste(sample(length(MSOM1$mean$alpha_null), 5), collapse = ",")))
-traceplot(MSOM1, parameters = sprintf("alpha_coef_env[c(%s)]", paste(sample(length(MSOM1$mean$alpha_coef_env), 5), collapse = ",")))
-traceplot(MSOM1, parameters = sprintf("beta_coef[c(%s)]", paste(sample(length(MSOM1$mean$beta_coef), 5), collapse = ",")))
-traceplot(MSOM1, parameters = sprintf("beta_null[c(%s)]", paste(sample(length(MSOM1$mean$beta_null), 5), collapse = ",")))
-# Overall good convergence in MSOM1
+# --> Generally very good convergence
 
-#MSOM2
-traceplot(MSOM2, "alpha_null")
-traceplot(MSOM2, "alpha_coef_traits")
-traceplot(MSOM2, parameters = sprintf("alpha_coef_env[c(%s)]", paste(sample(length(MSOM2$mean$alpha_coef_env), 5), collapse = ",")))
-traceplot(MSOM2, parameters = sprintf("beta_coef[c(%s)]", paste(sample(length(MSOM2$mean$beta_coef), 5), collapse = ",")))
-traceplot(MSOM2, parameters = sprintf("beta_null[c(%s)]", paste(sample(length(MSOM2$mean$beta_null), 5), collapse = ",")))
+## MSOM2 ####
+MSOM2 = readRDS("~/Data/Butterfly_models_fit/MSOM2/MSOM2_15.RDS")      # Full MCMC chain without burnin and thinning
+MSOM2_mcmc = MSOM2$mcmc[seq(from = burnin, to = 14000, by = thin),,]   # remove burnin, apply thinning
+MSOM2_summary = summary(as.mcmc.list(lapply(MSOM2_mcmc, as.mcmc)))     # create summary
 
-#MSOM3
-traceplot(MSOM3, parameters = sprintf("alpha_null_l1[c(%s)]", paste(sample(length(MSOM3$mean$alpha_null_l1), 5), collapse = ",")))
-traceplot(MSOM3, parameters = sprintf("alpha_coef_l1[c(%s)]", paste(sample(length(MSOM3$mean$alpha_coef_l1), 5), collapse = ",")))
-traceplot(MSOM3, parameters = "alpha_null_l2") 
-traceplot(MSOM3, parameters = "alpha_coef_l2") 
-traceplot(MSOM3, parameters = sprintf("beta_null[c(%s)]", paste(sample(length(MSOM3$mean$beta_null), 5), collapse = ",")))
-traceplot(MSOM3, parameters = sprintf("beta_coef[c(%s)]", paste(sample(length(MSOM3$mean$beta_coef), 5), collapse = ",")))
-# Convergence problems in level 2 parameters 
+# Look at random species
+spec_index = sample(1:105, 1)
+bayesplot::mcmc_trace(MSOM2_mcmc, regex_pars = paste0("\\[", spec_index, "[^0-9]"))
+bayesplot::mcmc_areas(MSOM2_mcmc, regex_pars = paste0("\\[", spec_index, "[^0-9]"))
 
-#### Response plots ####
-plot_response_MSOM_std = function(model, spec, variable, process, same_plot = F){
-  # Get species index
-  load("Data/species_final.RData")
-  traits_design_matrix = readRDS("Data/traits_design_matrix.RDS")
-  
-  if(!spec %in% species_final$spec_id){
+# Look at some critical parameters
+bayesplot::mcmc_trace(MSOM2_mcmc, regex_pars = "alpha_coef_traits")
+bayesplot::mcmc_areas(MSOM2_mcmc, regex_pars = "alpha_coef_traits")
+
+bayesplot::mcmc_trace(MSOM2_mcmc, regex_pars = "alpha_coef_env\\[[0-9]*,1\\]")
+bayesplot::mcmc_trace(MSOM2_mcmc, regex_pars = "beta_null")
+
+# --> Generally very good convergence
+# --> High uncertainty on some parameters
+
+## MSOM3 ####
+MSOM3 = readRDS("~/Data/Butterfly_models_fit/MSOM3/MSOM3_15.RDS")      # Full MCMC chain without burnin and thinning
+MSOM3_mcmc = MSOM3$mcmc[seq(from = burnin, to = 14000, by = thin),,]   # remove burnin, apply thinning
+MSOM3_summary = summary(as.mcmc.list(lapply(MSOM3_mcmc, as.mcmc)))     # create summary
+
+# Look at random species
+spec_index = sample(1:105, 1)
+bayesplot::mcmc_trace(MSOM3_mcmc, regex_pars = paste0("\\[", spec_index, "[^0-9]"))
+bayesplot::mcmc_areas(MSOM3_mcmc, regex_pars = paste0("\\[", spec_index, "[^0-9]"))
+
+# Look at some critical parameters
+bayesplot::mcmc_trace(MSOM3_mcmc, regex_pars = "alpha_coef_l2") # Trait effects on detection response to env. variables
+bayesplot::mcmc_trace(MSOM3_mcmc, regex_pars = "beta_null")
+
+# --> Okay convergence, BUT NOT on hierarchical effects
+
+# ------------------------------------------------------- #
+#                      Response Plots                  ####
+# ------------------------------------------------------- #
+plot_response_MSOM_std = function(model_summary, spec_id, variable, process, same_plot = F){
+  # Check if spec_id is valid
+  if(!spec_id %in% species_final$spec_id){
     stop("unknown species")
+  }
+  spec_index = which(species_final$spec_id == spec_id)
+  
+  # Check model structure (MSOM1, MSOM2, MSOM3)
+  smry = model_summary$statistics
+  param_names = str_extract(rownames(smry), "[^\\[]+") %>% unique()
+  if("alpha_coef_l1" %in% param_names){
+    model = "MSOM3"
+  } else if("alpha_coef_traits" %in% param_names){
+    model = "MSOM2"
   } else {
-    i = which(species_final$spec_id == spec)
+    model = "MSOM1"
   }
   
-  # Extract model parameters
-  model_fit = readRDS(paste0("Data/models_fit/MSOM/", model, ".RDS"))
-  n_samples = model_fit$mcmc.info$n.samples
+  # Extract intercept + coefficients
   if(process == "detection"){
+    traits_design_matrix = readRDS("Data/traits_design_matrix.RDS")
     intercept = switch(model,
-                       "MSOM_1" = model_fit$sims.list$alpha_null[,i],
-                       "MSOM_2" = model_fit$sims.list$alpha_null + model_fit$sims.list$alpha_coef_traits %*% as.vector(traits_design_matrix[i,]),  
-                       "MSOM_3" = model_fit$sims.list$mu_alpha_null + model_fit$sims.list$alpha_coef_traits %*% as.vector(traits_design_matrix[i,])
-    )
-    coefs = model_fit$sims.list$alpha_coef_env[,i,]
-    colnames(coefs) = c("elev", "elev_sq", "day", "day_sq")
+                       "MSOM1" = smry[paste0("alpha_null[", spec_index, "]"), "Mean"],
+                       "MSOM2" = smry["alpha_null", "Mean"] + smry[paste0("alpha_coef_traits[", 1:13, "]"), "Mean"] %*% as.vector(traits_design_matrix[spec_index,]),  
+                       "MSOM3" = smry[paste0("alpha_null_l1[", spec_index, "]"), "Mean"])
+    coefs = switch(model,
+                   "MSOM1" = smry[paste0("alpha_coef_env[", spec_index, ",", 1:4, "]"), "Mean"],
+                   "MSOM2" = smry[paste0("alpha_coef_env[", spec_index, ",", 1:4, "]"), "Mean"],
+                   "MSOM3" = smry[paste0("alpha_coef_l1[", spec_index, ",", 1:4, "]"), "Mean"])
+    names(coefs) = c("elev", "elev_sq", "day", "day_sq")
   } else if (process == "state"){
-    if(length(dim(model_fit$sims.list$beta_null)) == 2){
-      intercept = model_fit$sims.list$beta_null[,i]
-    } else {
-      intercept = rowMeans(model_fit$sims.list$beta_null[,i,])
-    }
-    coefs = model_fit$sims.list$beta_coef[,i,]
-    colnames(coefs) = c("ddeg0","bio_12","rad","asp","slp","ddeg0_sq","bio_12_sq","rad_sq","asp_sq","slp_sq")
+    intercept = smry[paste0("beta_null[", spec_index, "]"), "Mean"]
+    coefs = smry[paste0("beta_coef[", spec_index, ",", 1:10, "]"), "Mean"]
+    names(coefs) = c("ddeg0","bio_12","rad","asp","slp","ddeg0_sq","bio_12_sq","rad_sq","asp_sq","slp_sq")
   } else {
     stop("unknown process")
   }
-  
+
+  # Extract model parameters
   if(!variable %in% colnames(coefs)){
     stop("unknown variable")
   }
@@ -107,10 +122,10 @@ plot_response_MSOM_std = function(model, spec, variable, process, same_plot = F)
   var_lims = (range(var_orig) - mean(var_orig)) / sd(var_orig)
   
   # Plot
-  for(i in 1:nrow(coefs)){
-    if(i == 1){
+  for(spec_index in 1:nrow(coefs)){
+    if(spec_index == 1){
       curve(plogis(intercept[1] + coefs[1,variable]*x + coefs[1,paste0(variable, "_sq")]*x*x), 
-            from = var_lims[1], to = var_lims[2], col = "#FF000005", ylim = c(0, 1), axes = F, xlim = c(-3,3), main = spec,
+            from = var_lims[1], to = var_lims[2], col = "#FF000005", ylim = c(0, 1), axes = F, xlim = c(-3,3), main = spec_id,
             xlab = variable, ylab = ifelse(process == "state", "psi (probability of occurrence)", "p (probability of detection)"))
       axis(1, at = c(-3,-2,-1,-0,1,2,3), labels = round(c(mean(var_orig)-3*sd(var_orig), mean(var_orig)-2*sd(var_orig), mean(var_orig)-sd(var_orig), mean(var_orig), 
                                                           mean(var_orig)+sd(var_orig), mean(var_orig)+2*sd(var_orig), mean(var_orig)+3*sd(var_orig))))
@@ -118,7 +133,7 @@ plot_response_MSOM_std = function(model, spec, variable, process, same_plot = F)
       abline(v = var_lims[1])
       abline(v = var_lims[2])
     } else (
-      curve(plogis(intercept[i] + coefs[i,variable]*x + coefs[i,paste0(variable, "_sq")]*x*x),  from = var_lims[1], to = var_lims[2], add = T, col = "#FF000005")
+      curve(plogis(intercept[spec_index] + coefs[spec_index,variable]*x + coefs[spec_index,paste0(variable, "_sq")]*x*x),  from = var_lims[1], to = var_lims[2], add = T, col = "#FF000005")
     )
   }
 }
