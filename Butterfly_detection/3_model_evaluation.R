@@ -17,6 +17,7 @@ thin = 100
 MSOM1 = readRDS("~/Data/Butterfly_models_fit/MSOM1/MSOM1_15.RDS")      # Full MCMC chain without burnin and thinning
 MSOM1_mcmc = MSOM1$mcmc[seq(from = burnin, to = 14000, by = thin),,]   # remove burnin, apply thinning
 MSOM1_summary = summary(as.mcmc.list(lapply(MSOM1_mcmc, as.mcmc)))     # create summary
+save(MSOM1_summary, file = "Data/MSOM1_summary.RData")
 
 # Look at random species
 spec_index = sample(1:105, 1)                                                        # Re-run multiple times   
@@ -34,6 +35,7 @@ bayesplot::mcmc_trace(MSOM1$mcmc, regex_pars = "beta_coef\\[[0-9]*,6\\]")
 MSOM2 = readRDS("~/Data/Butterfly_models_fit/MSOM2/MSOM2_15.RDS")      # Full MCMC chain without burnin and thinning
 MSOM2_mcmc = MSOM2$mcmc[seq(from = burnin, to = 14000, by = thin),,]   # remove burnin, apply thinning
 MSOM2_summary = summary(as.mcmc.list(lapply(MSOM2_mcmc, as.mcmc)))     # create summary
+save(MSOM2_summary, file = "Data/MSOM2_summary.RData")
 
 # Look at random species
 spec_index = sample(1:105, 1)
@@ -54,6 +56,7 @@ bayesplot::mcmc_trace(MSOM2_mcmc, regex_pars = "beta_null")
 MSOM3 = readRDS("~/Data/Butterfly_models_fit/MSOM3/MSOM3_15.RDS")      # Full MCMC chain without burnin and thinning
 MSOM3_mcmc = MSOM3$mcmc[seq(from = burnin, to = 14000, by = thin),,]   # remove burnin, apply thinning
 MSOM3_summary = summary(as.mcmc.list(lapply(MSOM3_mcmc, as.mcmc)))     # create summary
+save(MSOM3_summary, file = "Data/MSOM3_summary.RData")
 
 # Look at random species
 spec_index = sample(1:105, 1)
@@ -69,12 +72,8 @@ bayesplot::mcmc_trace(MSOM3_mcmc, regex_pars = "beta_null")
 # ------------------------------------------------------- #
 #                      Response Plots                  ####
 # ------------------------------------------------------- #
+# Define plotting function
 plot_response = function(model_summary, spec_id, variable, process, same_plot = F){
-  # Check if spec_id is valid
-  if(!spec_id %in% species_final$spec_id){
-    stop("unknown species")
-  }
-  
   # Get index of spec_id
   spec_index = which(species_final$spec_id == spec_id)
   spec_name = species_final$species[species_final$spec_id == spec_id]
@@ -127,6 +126,7 @@ plot_response = function(model_summary, spec_id, variable, process, same_plot = 
   }  
   var_lims = (range(var_orig) - mean(var_orig)) / sd(var_orig)
   
+  # Plot response curve
   curve(plogis(intercept + coefs[1]*x + coefs[2]*x*x),
         from = var_lims[1], to = var_lims[2], ylim = c(0, 1), axes = F, xlim = c(-3,3), main = spec_name,
         xlab = variable, ylab = ifelse(process == "state", "psi (probability of occurrence)", "p (probability of detection)"))
@@ -135,49 +135,32 @@ plot_response = function(model_summary, spec_id, variable, process, same_plot = 
   axis(2, las = 1)
   abline(v = var_lims[1])
   abline(v = var_lims[2])
-  # Plot
-  # for(i in 1:nrow(coefs)){
-  #   if(i == 1){
-  #     curve(plogis(intercept[1] + coefs[1,variable]*x + coefs[1,paste0(variable, "_sq")]*x*x), 
-  #           from = var_lims[1], to = var_lims[2], col = "#FF000005", ylim = c(0, 1), axes = F, xlim = c(-3,3), main = spec_id,
-  #           xlab = variable, ylab = ifelse(process == "state", "psi (probability of occurrence)", "p (probability of detection)"))
-  #     axis(1, at = c(-3,-2,-1,-0,1,2,3), labels = round(c(mean(var_orig)-3*sd(var_orig), mean(var_orig)-2*sd(var_orig), mean(var_orig)-sd(var_orig), mean(var_orig), 
-  #                                                         mean(var_orig)+sd(var_orig), mean(var_orig)+2*sd(var_orig), mean(var_orig)+3*sd(var_orig))))
-  #     axis(2, las = 1)
-  #     abline(v = var_lims[1])
-  #     abline(v = var_lims[2])
-  #   } else (
-  #     curve(plogis(intercept[i] + coefs[i,variable]*x + coefs[i,paste0(variable, "_sq")]*x*x),  from = var_lims[1], to = var_lims[2], add = T, col = "#FF000005")
-  #   )
-  # }
 }
 
-
+# Plot selected variables
 for(spec_id in species_final$spec_id){
   plot_response(MSOM1_summary, spec_id, "elev", "detection")
-  Sys.sleep(0.2)
+  Sys.sleep(0.25)
   plot_response(MSOM2_summary, spec_id, "elev", "detection")
-  Sys.sleep(0.2)
+  Sys.sleep(0.25)
   plot_response(MSOM3_summary, spec_id, "elev", "detection")
   Sys.sleep(0.5)
 }
 
 for(spec_id in species_final$spec_id){
   plot_response(MSOM1_summary, spec_id, "day", "detection")
-  Sys.sleep(0.2)
+  Sys.sleep(0.25)
   plot_response(MSOM2_summary, spec_id, "day", "detection")
-  Sys.sleep(0.2)
+  Sys.sleep(0.25)
   plot_response(MSOM3_summary, spec_id, "day", "detection")
   Sys.sleep(0.5)
 }
 
 for(spec in species_final$spec_id){
-  plot_response_MSOM_std("MSOM_1", spec, "elev", "state")
-  Sys.sleep(0.1)
-  plot_response_MSOM_std("MSOM_2", spec, "elev", "state")
-  Sys.sleep(0.1)
-  plot_response_MSOM_std("MSOM_3", spec, "elev", "state")
-  Sys.sleep(0.1)
-  plot_response_MSOM_hrc(spec, "elev", "state")
-  Sys.sleep(0.1)
+  plot_response(MSOM1_summary, spec, "bio_12", "state")
+  Sys.sleep(0.25)
+  plot_response(MSOM2_summary, spec, "bio_12", "state")
+  Sys.sleep(0.25)
+  plot_response(MSOM3_summary, spec, "bio_12", "state")
+  Sys.sleep(0.5)
 }
