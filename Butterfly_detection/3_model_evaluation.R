@@ -69,12 +69,15 @@ bayesplot::mcmc_trace(MSOM3_mcmc, regex_pars = "beta_null")
 # ------------------------------------------------------- #
 #                      Response Plots                  ####
 # ------------------------------------------------------- #
-plot_response_MSOM_std = function(model_summary, spec_id, variable, process, same_plot = F){
+plot_response = function(model_summary, spec_id, variable, process, same_plot = F){
   # Check if spec_id is valid
   if(!spec_id %in% species_final$spec_id){
     stop("unknown species")
   }
+  
+  # Get index of spec_id
   spec_index = which(species_final$spec_id == spec_id)
+  spec_name = species_final$species[species_final$spec_id == spec_id]
   
   # Check model structure (MSOM1, MSOM2, MSOM3)
   smry = model_summary$statistics
@@ -99,6 +102,7 @@ plot_response_MSOM_std = function(model_summary, spec_id, variable, process, sam
                    "MSOM2" = smry[paste0("alpha_coef_env[", spec_index, ",", 1:4, "]"), "Mean"],
                    "MSOM3" = smry[paste0("alpha_coef_l1[", spec_index, ",", 1:4, "]"), "Mean"])
     names(coefs) = c("elev", "elev_sq", "day", "day_sq")
+    
   } else if (process == "state"){
     intercept = smry[paste0("beta_null[", spec_index, "]"), "Mean"]
     coefs = smry[paste0("beta_coef[", spec_index, ",", 1:10, "]"), "Mean"]
@@ -107,12 +111,14 @@ plot_response_MSOM_std = function(model_summary, spec_id, variable, process, sam
     stop("unknown process")
   }
 
-  # Extract model parameters
-  if(!variable %in% colnames(coefs)){
+  # Prepare for plotting
+  if(!variable %in% names(coefs)){
     stop("unknown variable")
+  } else {
+    coefs = coefs[str_detect(names(coefs), variable)]
   }
   
-  # Rescale variable to original range
+  # Determine variable range for plotting
   load("Data/sample_sites.RData")
   if(variable != "day"){
     var_orig = dplyr::select(sample_sites@data, contains(variable))[,1]
@@ -121,105 +127,48 @@ plot_response_MSOM_std = function(model_summary, spec_id, variable, process, sam
   }  
   var_lims = (range(var_orig) - mean(var_orig)) / sd(var_orig)
   
+  curve(plogis(intercept + coefs[1]*x + coefs[2]*x*x),
+        from = var_lims[1], to = var_lims[2], ylim = c(0, 1), axes = F, xlim = c(-3,3), main = spec_name,
+        xlab = variable, ylab = ifelse(process == "state", "psi (probability of occurrence)", "p (probability of detection)"))
+  axis(1, at = c(-3,-2,-1,-0,1,2,3), labels = round(c(mean(var_orig)-3*sd(var_orig), mean(var_orig)-2*sd(var_orig), mean(var_orig)-sd(var_orig), mean(var_orig),
+                                                      mean(var_orig)+sd(var_orig), mean(var_orig)+2*sd(var_orig), mean(var_orig)+3*sd(var_orig))))
+  axis(2, las = 1)
+  abline(v = var_lims[1])
+  abline(v = var_lims[2])
   # Plot
-  for(spec_index in 1:nrow(coefs)){
-    if(spec_index == 1){
-      curve(plogis(intercept[1] + coefs[1,variable]*x + coefs[1,paste0(variable, "_sq")]*x*x), 
-            from = var_lims[1], to = var_lims[2], col = "#FF000005", ylim = c(0, 1), axes = F, xlim = c(-3,3), main = spec_id,
-            xlab = variable, ylab = ifelse(process == "state", "psi (probability of occurrence)", "p (probability of detection)"))
-      axis(1, at = c(-3,-2,-1,-0,1,2,3), labels = round(c(mean(var_orig)-3*sd(var_orig), mean(var_orig)-2*sd(var_orig), mean(var_orig)-sd(var_orig), mean(var_orig), 
-                                                          mean(var_orig)+sd(var_orig), mean(var_orig)+2*sd(var_orig), mean(var_orig)+3*sd(var_orig))))
-      axis(2, las = 1)
-      abline(v = var_lims[1])
-      abline(v = var_lims[2])
-    } else (
-      curve(plogis(intercept[spec_index] + coefs[spec_index,variable]*x + coefs[spec_index,paste0(variable, "_sq")]*x*x),  from = var_lims[1], to = var_lims[2], add = T, col = "#FF000005")
-    )
-  }
+  # for(i in 1:nrow(coefs)){
+  #   if(i == 1){
+  #     curve(plogis(intercept[1] + coefs[1,variable]*x + coefs[1,paste0(variable, "_sq")]*x*x), 
+  #           from = var_lims[1], to = var_lims[2], col = "#FF000005", ylim = c(0, 1), axes = F, xlim = c(-3,3), main = spec_id,
+  #           xlab = variable, ylab = ifelse(process == "state", "psi (probability of occurrence)", "p (probability of detection)"))
+  #     axis(1, at = c(-3,-2,-1,-0,1,2,3), labels = round(c(mean(var_orig)-3*sd(var_orig), mean(var_orig)-2*sd(var_orig), mean(var_orig)-sd(var_orig), mean(var_orig), 
+  #                                                         mean(var_orig)+sd(var_orig), mean(var_orig)+2*sd(var_orig), mean(var_orig)+3*sd(var_orig))))
+  #     axis(2, las = 1)
+  #     abline(v = var_lims[1])
+  #     abline(v = var_lims[2])
+  #   } else (
+  #     curve(plogis(intercept[i] + coefs[i,variable]*x + coefs[i,paste0(variable, "_sq")]*x*x),  from = var_lims[1], to = var_lims[2], add = T, col = "#FF000005")
+  #   )
+  # }
 }
 
-plot_response_MSOM_hrc = function(spec, variable, process){
-  # Get species index
-  load("Data/species_final.RData")
-  traits_design_matrix = readRDS("Data/traits_design_matrix.RDS")
-  
-  if(!spec %in% species_final$spec_id){
-    stop("unknown species")
-  } else {
-    i = which(species_final$spec_id == spec)
-  }
-  
-  # Extract model parameters
-  model_fit = readRDS(paste0("Data/models_fit/MSOM/MSOM_4_testrun.RDS"))
-  n_samples = model_fit$mcmc.info$n.samples
-  if(process == "detection"){
-    intercept = model_fit$sims.list$mu_alpha_null_l1
-    coefs = model_fit$sims.list$alpha_coef_l1[,i,]
-    colnames(coefs) = c("elev", "elev_sq", "day", "day_sq")
-  } else if (process == "state"){
-    if(length(dim(model_fit$sims.list$beta_null)) == 2){
-      intercept = model_fit$sims.list$beta_null[,i]
-    } else {
-      intercept = rowMeans(model_fit$sims.list$beta_null[,i,])
-    }
-    coefs = model_fit$sims.list$beta_coef[,i,]
-    colnames(coefs) = c("ddeg0","bio_12","rad","asp","slp","ddeg0_sq","bio_12_sq","rad_sq","asp_sq","slp_sq")
-  } else {
-    stop("unknown process")
-  }
-  
-  if(!variable %in% colnames(coefs)){
-    stop("unknown variable")
-  }
-  
-  # Rescale variable to original range
-  load("Data/sample_sites.RData")
-  if(variable != "day"){
-    var_orig = dplyr::select(sample_sites@data, contains(variable))[,1]
-  } else {
-    var_orig = 1:365
-  }  
-  var_lims = (range(var_orig) - mean(var_orig)) / sd(var_orig)
-  
-  # Plot
-  for(i in 1:nrow(coefs)){
-    if(i == 1){
-      curve(plogis(intercept[1] + coefs[1,variable]*x + coefs[1,paste0(variable, "_sq")]*x*x), 
-            from = var_lims[1], to = var_lims[2], col = "#FF000005", ylim = c(0, 1), axes = F, xlim = c(-3,3), main = spec,
-            xlab = variable, ylab = ifelse(process == "state", "psi (probability of occurrence)", "p (probability of detection)"))
-      axis(1, at = c(-3,-2,-1,-0,1,2,3), labels = round(c(mean(var_orig)-3*sd(var_orig), mean(var_orig)-2*sd(var_orig), mean(var_orig)-sd(var_orig), mean(var_orig), 
-                                                          mean(var_orig)+sd(var_orig), mean(var_orig)+2*sd(var_orig), mean(var_orig)+3*sd(var_orig))))
-      axis(2, las = 1)
-      abline(v = var_lims[1])
-      abline(v = var_lims[2])
-    } else (
-      curve(plogis(intercept[i] + coefs[i,variable]*x + coefs[i,paste0(variable, "_sq")]*x*x),  from = var_lims[1], to = var_lims[2], add = T, col = "#FF000005")
-    )
-  }
+
+for(spec_id in species_final$spec_id){
+  plot_response(MSOM1_summary, spec_id, "elev", "detection")
+  Sys.sleep(0.2)
+  plot_response(MSOM2_summary, spec_id, "elev", "detection")
+  Sys.sleep(0.2)
+  plot_response(MSOM3_summary, spec_id, "elev", "detection")
+  Sys.sleep(0.5)
 }
 
-for(spec in species_final$spec_id){
-  plot_response_MSOM_std("MSOM_1", spec, "elev", "detection")
-  Sys.sleep(0.1)
-  plot_response_MSOM_std("MSOM_2", spec, "elev", "detection")
-  Sys.sleep(0.1)
-  plot_response_MSOM_std("MSOM_3", spec, "elev", "detection")
-  Sys.sleep(0.1)
-  plot_response_MSOM_hrc(spec, "elev", "detection")
-  Sys.sleep(0.1)
-}
-
-for(spec in species_final$spec_id){
-  plot_response_MSOM_std("MSOM_1", spec, "day", "detection")
-  Sys.sleep(0.1)
-  plot_response_MSOM_std("MSOM_2", spec, "day", "detection")
-  Sys.sleep(0.1)
-  plot_response_MSOM_std("MSOM_3_lasso", spec, "day", "detection")
-  Sys.sleep(0.1)
-  plot_response_MSOM_std("MSOM_3", spec, "day", "detection")
-  Sys.sleep(0.1)
-  plot_response_MSOM_hrc(spec, "day", "detection")
-  Sys.sleep(0.1)
+for(spec_id in species_final$spec_id){
+  plot_response(MSOM1_summary, spec_id, "day", "detection")
+  Sys.sleep(0.2)
+  plot_response(MSOM2_summary, spec_id, "day", "detection")
+  Sys.sleep(0.2)
+  plot_response(MSOM3_summary, spec_id, "day", "detection")
+  Sys.sleep(0.5)
 }
 
 for(spec in species_final$spec_id){
