@@ -73,11 +73,12 @@ save(species_final, file = "Data/species_final.RData")
 
 # ------------------------------------------------------------------------------------- #
 #### Trait data ####
-# colors_extr = bind_rows(lapply(list.files(path = "Data/raw_data/traits/Zeuss/", pattern = "idae\\.Rdata", full.names = T), function(file){
-# +     load(file)
-# +     return(colors_extr)
-# + }))
-# save(colors_extr, file = "Data/raw_data/traits/Zeuss/colors_extr.RData")
+colors_extr = bind_rows(lapply(list.files(path = "Data/raw_data/traits/Zeuss/", pattern = "idae\\.Rdata", full.names = T), function(file){
+  load(file)
+  return(colors_extr)
+}))
+save(colors_extr, file = "Data/raw_data/traits/Zeuss/colors_extr.RData")
+
 # Color traits: main color, saturation, lightness
 synonyms_zeuss = drop_na(read_csv("Data/raw_data/traits/Zeuss/synonym_lookup_edit.csv"))
 load("Data/raw_data/traits/Zeuss/colors_extr.RData")
