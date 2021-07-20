@@ -5,6 +5,11 @@ setwd("~/ownCloud/Projects/Berlin/06 - Butterfly_detection/")
 rm(list = ls())
 
 # ------------------------------------------------------------------------------------- #
+# This script was developed by Christian König and has been tested on the four sample images in /Data/raw_data/traits/Zeuss. These images are named following the scheme 
+# <Family><Genus><species><side of the photographed individual><sex of the photographed individual>.png
+# The extraction of color characteristics for all species was done by Dirk Zeuss at Marburg University, who was hesitant to share the full dataset of scans.
+# The results files can be found in the same folder (colors_extr_<family_name>.Rdata)
+
 #### Process images ####
 lookup = read_csv("~/Documents/lookup.csv")
 pattern = paste(str_replace(lookup$name_Zeuss, " ", "_"), collapse = "|")
@@ -21,7 +26,7 @@ colors_extr = bind_rows(lapply(file_names, function(file_name){
   green = as.vector(pic[,,2])[alpha != 0]
   blue = as.vector(pic[,,3])[alpha != 0]
  
-  # convert to HSV
+  # convert to HSV (hue, saturation, value) color space 
   pic_hsv = rgb2hsv(red, green, blue, maxColorValue = 1)
   mean_sat = mean(pic_hsv[2,])
   mean_lgt = mean(pic_hsv[3,])
@@ -43,23 +48,3 @@ colors_extr = bind_rows(lapply(file_names, function(file_name){
   
   return(tibble(species = species, side = side, sex = sex, main_color = main_color, mean_sat = mean_sat, mean_lgt = mean_lgt))
 }))
-
-# Load extracted values
-results_files = list.files("Data/raw_data/traits/", pattern = "colors_extr", full.names = T)
-results = bind_rows(lapply(results_files, function(x){
-  load(x)
-  return(colors_extr)
-}))
-
-# look at duplicates
-duplicates = results[duplicated(results[,c("species", "side", "sex")]) | duplicated(results[,c("species", "side", "sex")], fromLast = T),]
-# duplicates have generally very similar values -> remove at random
-
-colors_extr = results %>% 
-  pivot_wider(id_cols = c(species, side, sex), 
-              names_from = c(side, sex), 
-              values_from = c(main_color, mean_sat, mean_lgt), 
-              values_fn = function(x){sample(x, 1)}, # remove duplicates at random
-              values_fill = NA)
-
-save(colors_extr, file = "Data/raw_data/traits/colors_extr.RData")

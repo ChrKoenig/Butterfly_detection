@@ -15,7 +15,3 @@ MSOM3 = readRDS("//import/calc9z/data-zurell/koenig/Butterfly_models_fit/MSOM3/M
 MSOM3_dic = runjags::extract(MSOM3, "DIC")                                                                 # Extract DIC    
 save(MSOM3_dic, file = "//import/calc9z/data-zurell/koenig/Butterfly_models_fit/MSOM3/MSOM3_dic.RData")    # save result 
 
-
-# DICs of different models can later be compared using the following command:
-
-# rjags::diffdic(MSOM1_dic, MSOM2_dic)

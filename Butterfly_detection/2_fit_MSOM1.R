@@ -68,6 +68,9 @@ MSOM1_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
 
 MSOM1_params = c("alpha_null", "alpha_coef_env", "beta_null", "beta_coef", "deviance")
 
+# The following code iteratively samples 1000 MCMC draws and saves the temporary result as separate files. Previous  samples are not deleted, so the 
+# model objects become larger with every iteration. We did this because we needed some insight into the blackbox that is running JAGS models from R, which was
+# characterized by frequent crashes, memory leaks or and other unexpected behaviour from the different wrapper packages. 
 MSOM1_samples = run.jags(model = "Butterfly_detection/jags_models/MSOM_1.txt",
                          monitor = MSOM1_params, data = MSOM1_data, inits = MSOM1_inits,
                          n.chains = n_chains, burnin = n_burnin, sample = n_sample, adapt = n_adapt, thin = n_thin,

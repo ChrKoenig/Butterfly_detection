@@ -67,12 +67,13 @@ bayesplot::mcmc_areas(MSOM3_mcmc, regex_pars = paste0("\\[", spec_index, "[^0-9]
 bayesplot::mcmc_trace(MSOM3_mcmc, regex_pars = "alpha_coef_l2") # Trait effects on detection response to env. variables
 bayesplot::mcmc_trace(MSOM3_mcmc, regex_pars = "beta_null")
 
-# --> Okay convergence, BUT NOT on hierarchical effects
+# --> Okay convergence, but not on all hierarchical effects
 
 # ------------------------------------------------------- #
 #                      Response Plots                  ####
 # ------------------------------------------------------- #
 # Define plotting function
+# TODO use posterior samples instead of posterior mean to also reflect uncertainty in model predictions
 plot_response = function(model_summary, spec_id, variable, process, same_plot = F){
   # Get index of spec_id
   spec_index = which(species_final$spec_id == spec_id)
@@ -137,6 +138,11 @@ plot_response = function(model_summary, spec_id, variable, process, same_plot = 
   abline(v = var_lims[2])
 }
 
+# Load summaries
+load("Data/MSOM1_summary.RData")
+load("Data/MSOM2_summary.RData")
+load("Data/MSOM3_summary.RData")
+
 # Plot selected variables
 for(spec_id in species_final$spec_id){
   plot_response(MSOM1_summary, spec_id, "elev", "detection")
@@ -164,3 +170,7 @@ for(spec in species_final$spec_id){
   plot_response(MSOM3_summary, spec, "bio_12", "state")
   Sys.sleep(0.5)
 }
+
+# --> Estimated responses broadly similar among models for most species
+# --> MSOM1 and MSOM3 generally more alike, while MSOM2 is often somewhat different/shifted compared to the other two models 
+# --> More variation in estimated responses in detection submodel than in occupancy submodel

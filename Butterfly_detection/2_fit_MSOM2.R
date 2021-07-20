@@ -53,6 +53,8 @@ x_det_elev = as.vector(scale(as.numeric(x_det$elevation)))
 traits_num = species_final %>% 
   left_join(traits_final, by = "species") %>% 
   dplyr::select(Vol_min, WIn, HSI, FMo_Average, mean_sat_top, mean_sat_bottom, mean_lgt_top, mean_lgt_bottom)
+
+# Could be done in pre-processing. It's here because we only saw in the model evaluation that the high collinearity in top and bottom side color leads to poor convergence
 main_color = species_final %>% 
   left_join(traits_final, by = "species") %>% 
   mutate(main_color = ifelse(main_color_top == "none", main_color_bottom, main_color_top),
@@ -61,7 +63,7 @@ main_color = species_final %>%
 main_color = main_color[,-1] # remove intercept (i.e."none") column; will be estimated as separate param in JAGS 
 
 x_det_traits = as.matrix(cbind(traits_num, main_color))
-# qr(x_det_traits) # --> Full rank
+# qr(x_det_traits) # --> Full rank --> no identifiablity issues
 
 # ------------------------------------------------------------------------------------- #
 #### Fit models ####
@@ -82,6 +84,9 @@ MSOM2_inits = function(){list(z = array(1, dim(y)))} # always start with z = 1
 
 MSOM2_params = c("alpha_null", "alpha_coef_env", "alpha_coef_traits", "beta_null", "beta_coef", "deviance")
 
+# The following code iteratively samples 1000 MCMC draws and saves the temporary result as separate files. Previous  samples are not deleted, so the 
+# model objects become larger with every iteration. We did this because we needed some insight into the blackbox that is running JAGS models from R, which was
+# characterized by frequent crashes, memory leaks or and other unexpected behaviour from the different wrapper packages. 
 MSOM2_samples = run.jags(model = "Butterfly_detection/jags_models/MSOM_2.txt",
                          monitor = MSOM2_params, data = MSOM2_data, inits = MSOM2_inits,
                          n.chains = n_chains, burnin = n_burnin, sample = n_sample, adapt = n_adapt, thin = n_thin,

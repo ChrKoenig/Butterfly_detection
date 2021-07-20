@@ -2,7 +2,7 @@ library("raster")
 library("sp")
 library("tidyverse")
 
-setwd("~/Butterfly_project/")
+setwd("~/ownCloud/Projects/Berlin/06_Butterfly_detection/")
 rm(list = ls())
 
 # ------------------------------------------------------------------------------------- #
@@ -56,55 +56,71 @@ observations_completed = observations %>%
 save(observations_completed, file = "Data/observations_completed.RData")
 
 # ------------------------------------------------------------------------------------- #
-#### Final species selection (observed + traits available)
-# sort(setdiff(unique(observations_completed$species), colors_extr$species))
-# write_csv(data.frame(name_BDM = sort(setdiff(unique(observations_completed$species), colors_extr$species)), name_Zeuss = NA),
-#          "Data/raw_data/traits/Zeuss/synonym_lookup.csv")
-# 
-# # Load species lookup table
-synonyms_zeuss = read_csv("Data/raw_data/traits/Zeuss/synonym_lookup_edit.csv")
-synonyms_embt = read_csv("Data/raw_data/traits/EMBTv1.2/synonym_lookup_edit.csv")
-species_final = distinct(dplyr::select(observations_completed, "spec_id", "species")) %>% 
-  anti_join(filter(synonyms_zeuss, is.na(name_Zeuss)), by = c("species" = "name_BDM")) %>% 
-  anti_join(filter(synonyms_embt, is.na(name_EMBT)), by = c("species" = "name_BDM")) %>% 
-  dplyr::select(species, spec_id)
-
-save(species_final, file = "Data/species_final.RData")
-
-# ------------------------------------------------------------------------------------- #
 #### Trait data ####
-colors_extr = bind_rows(lapply(list.files(path = "Data/raw_data/traits/Zeuss/", pattern = "idae\\.Rdata", full.names = T), function(file){
-  load(file)
-  return(colors_extr)
-}))
-save(colors_extr, file = "Data/raw_data/traits/Zeuss/colors_extr.RData")
-
-# Color traits: main color, saturation, lightness
-synonyms_zeuss = drop_na(read_csv("Data/raw_data/traits/Zeuss/synonym_lookup_edit.csv"))
-load("Data/raw_data/traits/Zeuss/colors_extr.RData")
-traits_zeuss = colors_extr %>% 
-  group_by(species, side) %>% 
-  summarize(main_color = raster::modal(main_color),
-            mean_sat = mean(mean_sat),
-            mean_lgt = mean(mean_lgt)) %>% 
-  pivot_wider(id_cols = species, names_from = side, values_from = c(main_color, mean_sat, mean_lgt)) %>% 
-  left_join(synonyms_zeuss, by = c("species" = "name_Zeuss")) %>%
-  rowwise() %>% 
-  mutate(species = replace(species, !is.na(name_BDM), name_BDM)) %>% 
-  filter(species %in% species_final$species) %>% 
-  dplyr::select(-name_BDM)
-
-# Morphological/behavioural traits: Voltinism, Wing index, Hostplant specificity index, Basking Site
-synonyms_embt = drop_na(read_csv("Data/raw_data/traits/EMBTv1.2/synonym_lookup_edit.csv"))
+##### Morphological/behavioral traits: Voltinism, Wing index, Hostplant specificity index #####
+# Select traits
 traits_embt = read_csv("Data/raw_data/traits/EMBTv1.2/EMBT_trait_states.csv") %>% 
   mutate(species = str_replace(Taxon, "_", " ")) %>% 
-  dplyr::select("species", "Vol_min", "WIn", "HSI", "FMo_Average") %>% 
+  dplyr::select("species", "Vol_min", "WIn", "HSI", "FMo_Average")
+
+# Harmonize species names
+sort(setdiff(unique(observations_completed$species), traits_embt$species))
+write_csv(x = data.frame(name_BDM = sort(setdiff(unique(observations_completed$species), traits_embt$species)), 
+                     name_EMBT = NA),
+          path = "Data/raw_data/traits/EMBTv1.2/synonym_lookup.csv")
+# --> Harmonize names manually and save as synonym_lookup_edit.csv
+
+# Use harmonized names
+synonyms_embt = drop_na(read_csv("Data/raw_data/traits/EMBTv1.2/synonym_lookup_edit.csv"))
+traits_embt = traits_embt %>% 
   full_join(synonyms_embt, by = c("species" = "name_EMBT")) %>% 
   rowwise() %>% 
   mutate(species = replace(species, !is.na(name_BDM), name_BDM)) %>% 
   dplyr::select(-name_BDM)
 
-# Join traits
+##### Color traits #####
+# Merge extraction results
+colors_extr = bind_rows(lapply(list.files(path = "Data/raw_data/traits/Zeuss/", pattern = "idae\\.Rdata", full.names = T), function(file){
+  load(file)
+  return(colors_extr)
+}))
+save(colors_extr, file = "Data/raw_data/traits/Zeuss/colors_extr.RData") # Color traits: main color, saturation, lightness
+
+# Summarize extraction results (don't consider sex of photographed individual)
+traits_zeuss = colors_extr %>% 
+  group_by(species, side) %>% 
+  summarize(main_color = raster::modal(main_color),
+            mean_sat = mean(mean_sat),
+            mean_lgt = mean(mean_lgt)) %>% 
+  pivot_wider(id_cols = species, names_from = side, values_from = c(main_color, mean_sat, mean_lgt))
+
+# Harmonize species names
+sort(setdiff(unique(observations_completed$species), colors_extr$species))
+write_csv(x = data.frame(name_BDM = sort(setdiff(unique(observations_completed$species), traits_zeuss$species)), 
+                     name_Zeuss = NA),
+          path = "Data/raw_data/traits/Zeuss/synonym_lookup.csv")
+# --> Harmonize names manually and save as synonym_lookup_edit.csv
+
+# Use harmonized names
+synonyms_zeuss = drop_na(read_csv("Data/raw_data/traits/Zeuss/synonym_lookup_edit.csv"))
+traits_zeuss =  traits_zeuss %>% 
+  left_join(synonyms_zeuss, by = c("species" = "name_Zeuss")) %>%
+  rowwise() %>% 
+  mutate(species = replace(species, !is.na(name_BDM), name_BDM)) %>% 
+  dplyr::select(-name_BDM)
+
+# ------------------------------------------------------------------------------------- #
+#### Final species selection (observed + traits available) ####
+# Keep only observations from species that could be matched to both trait datasets
+species_final = distinct(dplyr::select(observations_completed, "spec_id", "species")) %>% 
+  anti_join(filter(synonyms_zeuss, is.na(name_Zeuss)), by = c("species" = "name_BDM")) %>% 
+  anti_join(filter(synonyms_embt, is.na(name_EMBT)), by = c("species" = "name_BDM")) %>% 
+  dplyr::select(species, spec_id)
+
+# Save final species names and ids
+save(species_final, file = "Data/species_final.RData")
+
+# Save final traits
 traits_final = traits_embt %>% 
   full_join(traits_zeuss) %>% 
   dplyr::filter(species %in% species_final$species)
@@ -112,7 +128,8 @@ traits_final = traits_embt %>%
 save(traits_final, file =  "Data/traits_final.RData")
 
 # ------------------------------------------------------------------------------------- #
-#### Sampling sites ####
+#### Environmental data ####
+##### Create spatial object from site coordinates #####
 site_coords = observations %>%  
   dplyr::select(site_id, coord_x, coord_y) %>% 
   distinct()
@@ -135,8 +152,7 @@ site_polygons = do.call("rbind", c(args = site_polygons, makeUniqueIDs = TRUE))
 extent(site_polygons)
 plot(site_polygons)
 
-# ------------------------------------------------------------------------------------- #
-#### Env data ####
+##### Extract environmental variables #####
 climtopo = stack("Data/raw_data/CH_climtopo_1km.grd")
 landuse = stack("Data/raw_data/Areal_NOAS04_prop1km.grd")
 landuse_key = read_csv("Data/raw_data/landuse_types.csv")
@@ -146,7 +162,7 @@ extent(landuse)
 
 # Extract values
 extr_climtopo = raster::extract(climtopo, site_polygons, fun = median)
-extr_landuse  = raster::extract(subset(landuse, grep("AS09_17", names(landuse))), site_polygons, fun = median) # TODO: Discuss appropriate level with damaris, Some rows don't add up tp 100
+extr_landuse  = raster::extract(subset(landuse, grep("AS09_17", names(landuse))), site_polygons, fun = median)
 
 # Create SPDF
 extr_env = cbind(extr_climtopo, extr_landuse) %>% 
@@ -155,50 +171,6 @@ extr_env = cbind(extr_climtopo, extr_landuse) %>%
   left_join(distinct(observations[,c("site_id", "elevation")])) %>% 
   column_to_rownames("site_id")
 
+# Save
 sample_sites = SpatialPolygonsDataFrame(site_polygons, extr_env, match.ID = T)
 save(sample_sites, file =  "Data/sample_sites.RData")
-
-# ------------------------------------------------------------------------------------- #
-#### Trait data ####
-# traits_altermatt = read_csv("Data/raw_data/traits/traits_Altermatt.csv") %>% 
-#  select(species, generations, hibernation, larva_diet)
-
-synonym_lookup = drop_na(read_csv("Data/synonym_lookup_edit.csv"))
-
-traits_zeuss = read_delim("Data/raw_data/traits/Europa_schmetterlinge_data_art_final.csv", delim = ";", locale = locale(decimal_mark = ",")) %>% 
-  rowwise() %>% 
-  mutate(genus = strsplit(file, split = "_")[[1]][2],
-         epithet = strsplit(file, split = "_")[[1]][3],
-         species = paste(genus, epithet),
-         color = case_when(meanHue*360 < 20 ~ "red",
-                           meanHue*360 < 50 ~ "orange",
-                           meanHue*360 < 70 ~ "yellow",
-                           meanHue*360 < 160 ~ "green",
-                           meanHue*360 < 200 ~ "cyan",
-                           meanHue*360 < 280 ~ "blue",
-                           meanHue*360 < 330 ~ "magenta",
-                           TRUE ~ "red")) %>% 
-  full_join(synonym_lookup, by = c("species" = "name_Zeuss")) %>% 
-  mutate(species = replace(species, !is.na(name_BDM), name_BDM)) %>% 
-  dplyr::select(species, generations = voltinism_num, color, saturation = meanChroma, 
-                brightness = meanValue, body_area = bodysize_cm2) 
-
-traits_final = traits_zeuss
-save(traits_final, file =  "Data/traits_final.RData")
-
-# ------------------------------------------------------------------------------------- #
-#### Final species selection (observed + traits available)
-# traits_only = sort(setdiff(traits_final$species, unique(observations_completed$species)))
-# obs_only = sort(setdiff(unique(observations_completed$species), traits_final$species))
-# 
-# # Manually match synonyms, BDM naming convention has priority
-# write_csv(data.frame(name_BDM = obs_only, name_Zeuss = ""), path = "Data/synonym_lookup.csv")
-# 
-# # Load species lookup table
-# synonym_lookup = drop_na(read_csv("Data/synonym_lookup_edit.csv"))
-
-species_final = traits_final %>% 
-  inner_join(distinct(dplyr::select(observations_completed, "spec_id", "species"))) %>% 
-  dplyr::select(species, spec_id)
-
-save(species_final, file = "Data/species_final.RData")
