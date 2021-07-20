@@ -2,10 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
-.sh
+
 model_examples/
 Data/
-Figures/
+Figures/*.pptx
 Manuscript/
 **/deprecated/
 *error.txt
