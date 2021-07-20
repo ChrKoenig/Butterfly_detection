@@ -11,7 +11,7 @@ We analyse Swiss butteflies and ask whether phenotypical and life-history affect
 *A detailed description of the data preparation is given in the accompanying manuscript.*
 
 **Survey data:**
-We obtained presence/absence data for day-flying Butterflies (including Hesperiidae and Zygaenidae) from the Swiss Biodiversity Monitoring (BDM, BDM coordination office 2014). The BDM data are structured into primary samples (up to seven site visits per year) and secondary samples (during each visit, record observations separately for the ways back and forth along the transect). Since butterfly populations fluctuate within years, we derive detection probabilities from the secondary samples (robust design, [Kendall et al. 1997](#3)).
+We obtained presence/absence data for day-flying Butterflies (including Hesperiidae and Zygaenidae) from the Swiss Biodiversity Monitoring (BDM, [BDM coordination office 2014](#2)). The BDM data are structured into primary samples (up to seven site visits per year) and secondary samples (during each visit, record observations separately for the ways back and forth along the transect). Since butterfly populations fluctuate within years, we derive detection probabilities from the secondary samples (robust design, [Kendall et al. 1997](#3)).
 
 **Trait data:**
 Morphological and life-history traits (voltinism, length of flight period, wing index, host plant specificity) were obtained from [Middleton-Welling et al. (2020)](#4). Traits describing the color and brightness of species were extracted from a dataset of scanned color images (see [Zeuss, 2017](#5)). 
@@ -63,6 +63,10 @@ The analysis is not well developed yet and may cover the following aspects:
 * Comparison of model prediction error / goodness of fit using DIC
 * Comparative analysis of trait effects on detection probability
 * Aggregation of model predictions by family/conservation status/habitat etc --> Mapping?
+
+An initial plot of the trait effects estimated by MSOM2 seems to be in agreement with hypothesis 1, although further investigation (higher detection probability for large, colourful species) is needed:
+
+<center><img src='Figures/trait_effects_MSOM2.png' width='75%'></center>
 
 ### Miscellaneous comments
 

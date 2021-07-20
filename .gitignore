@@ -6,7 +6,6 @@
 model_examples/
 Data/
 Figures/*.pptx
-Manuscript/
 **/deprecated/
 *error.txt
 *output.txt
